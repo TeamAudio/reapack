@@ -10,7 +10,7 @@ the user guide or the package upload tool.
 
 Clone the repository and submodules:
 
-    git clone --recursive --shallow-submodules https://github.com/cfillion/reapack.git
+    git clone --recursive --shallow-submodules https://codeberg.org/cfillion/reapack.git
 
 ### Prerequisites
 
@@ -131,5 +131,5 @@ Questions related to development or packaging can be asked in the
 [development thread](https://forum.cockos.com/showthread.php?t=169127).
 
 Report bugs or request features in the
-[issue tracker](https://github.com/cfillion/reapack/issues).
+[issue tracker](https://codeberg.org/cfillion/reapack/issues).
 Send code contributions as pull requests.

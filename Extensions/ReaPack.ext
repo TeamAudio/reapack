@@ -3,16 +3,16 @@
 @author cfillion
 @donation https://reapack.com/donate
 @provides
-  [darwin32       ] reaper_reapack-i386.dylib   https://github.com/cfillion/reapack/releases/download/v$version/$path
-  [darwin64       ] reaper_reapack-x86_64.dylib https://github.com/cfillion/reapack/releases/download/v$version/$path
-  [darwin-arm64   ] reaper_reapack-arm64.dylib  https://github.com/cfillion/reapack/releases/download/v$version/$path
-  [linux32        ] reaper_reapack-i686.so      https://github.com/cfillion/reapack/releases/download/v$version/$path
-  [linux64        ] reaper_reapack-x86_64.so    https://github.com/cfillion/reapack/releases/download/v$version/$path
-  [linux-armv7l   ] reaper_reapack-armv7l.so    https://github.com/cfillion/reapack/releases/download/v$version/$path
-  [linux-aarch64  ] reaper_reapack-aarch64.so   https://github.com/cfillion/reapack/releases/download/v$version/$path
-  [win32          ] reaper_reapack-x86.dll      https://github.com/cfillion/reapack/releases/download/v$version/$path
-  [win64          ] reaper_reapack-x64.dll      https://github.com/cfillion/reapack/releases/download/v$version/$path
-  [windows-arm64ec] reaper_reapack-arm64ec.dll  https://github.com/cfillion/reapack/releases/download/v$version/$path
+  [darwin32       ] reaper_reapack-i386.dylib   https://codeberg.org/cfillion/reapack/releases/download/v$version/$path
+  [darwin64       ] reaper_reapack-x86_64.dylib https://codeberg.org/cfillion/reapack/releases/download/v$version/$path
+  [darwin-arm64   ] reaper_reapack-arm64.dylib  https://codeberg.org/cfillion/reapack/releases/download/v$version/$path
+  [linux32        ] reaper_reapack-i686.so      https://codeberg.org/cfillion/reapack/releases/download/v$version/$path
+  [linux64        ] reaper_reapack-x86_64.so    https://codeberg.org/cfillion/reapack/releases/download/v$version/$path
+  [linux-armv7l   ] reaper_reapack-armv7l.so    https://codeberg.org/cfillion/reapack/releases/download/v$version/$path
+  [linux-aarch64  ] reaper_reapack-aarch64.so   https://codeberg.org/cfillion/reapack/releases/download/v$version/$path
+  [win32          ] reaper_reapack-x86.dll      https://codeberg.org/cfillion/reapack/releases/download/v$version/$path
+  [win64          ] reaper_reapack-x64.dll      https://codeberg.org/cfillion/reapack/releases/download/v$version/$path
+  [windows-arm64ec] reaper_reapack-arm64ec.dll  https://codeberg.org/cfillion/reapack/releases/download/v$version/$path
 @changelog
   • Add support for REAPER v7.40's new Crossfade Editor action section
   • Add support for installing files in the KeyMaps folder
