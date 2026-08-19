@@ -23,6 +23,7 @@
 
 #include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <sys/stat.h>
 
@@ -223,5 +224,5 @@ Path FS::canonical(const Path &path)
 
 const char *FS::lastError()
 {
-  return strerror(errno);
+  return std::strerror(errno);
 }

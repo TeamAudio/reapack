@@ -46,6 +46,15 @@ static const char *silenceOutput()
 #endif
 }
 
+static int runCommand(const std::string &command)
+{
+#ifdef _WIN32
+  return std::system(("\"" + command + "\"").c_str());
+#else
+  return std::system(command.c_str());
+#endif
+}
+
 static std::string extract(const ArchiveReaderPtr &reader, const Path &path)
 {
   std::ostringstream stream;
@@ -56,13 +65,13 @@ static std::string extract(const ArchiveReaderPtr &reader, const Path &path)
 TEST_CASE("archive CLI help", M) {
   const std::string command = shellQuote(REAPACK_ARCHIVE_EXECUTABLE) +
     " --help" + silenceOutput();
-  REQUIRE(std::system(command.c_str()) == 0);
+  REQUIRE(runCommand(command) == 0);
 }
 
 TEST_CASE("archive CLI rejects invalid usage", M) {
   const std::string command = shellQuote(REAPACK_ARCHIVE_EXECUTABLE) +
     " --unknown" + silenceOutput();
-  REQUIRE(std::system(command.c_str()) != 0);
+  REQUIRE(runCommand(command) != 0);
 }
 
 TEST_CASE("build an archive through the CLI", M) {
@@ -97,17 +106,19 @@ TEST_CASE("build an archive through the CLI", M) {
     " --source-root " + shellQuote(FS::canonical(inputDir).join()) +
     " --repository-name " + shellQuote("CLI Preview") +
     " --offline" +
-    " --output " + shellQuote(output.join()) + silenceOutput();
+    " --output " + shellQuote(output.join());
 
-  REQUIRE(std::system(command.c_str()) == 0);
+  REQUIRE(runCommand(command) == 0);
   REQUIRE(FS::exists(output));
 
-  const auto reader = std::make_shared<ArchiveReader>(output);
-  REQUIRE(extract(reader, Path("toc")) ==
-    "REPO CLI Preview|https://reapack-preview.invalid/index.xml|0|0\n"
-    "PACK \"Tools\" \"Payload.lua\" \"1.0\" 0\n");
-  REQUIRE(extract(reader, Path("Scripts/CLI Preview/Tools/payload.lua")) ==
-    "payload");
+  {
+    const auto reader = std::make_shared<ArchiveReader>(output);
+    REQUIRE(extract(reader, Path("toc")) ==
+      "REPO CLI Preview|https://reapack-preview.invalid/index.xml|0|0\n"
+      "PACK \"Tools\" \"Payload.lua\" \"1.0\" 0\n");
+    REQUIRE(extract(reader, Path("Scripts/CLI Preview/Tools/payload.lua")) ==
+      "payload");
+  }
 
   REQUIRE(FS::remove(index));
   REQUIRE(FS::remove(payload));
@@ -148,15 +159,17 @@ TEST_CASE("build an archive from a remote source through the CLI", M) {
     " --index " + shellQuote(FS::canonical(index).join()) +
     " --source-root " + shellQuote(FS::canonical(inputDir).join()) +
     " --repository-name " + shellQuote("Remote CLI Preview") +
-    " --output " + shellQuote(output.join()) + silenceOutput();
+    " --output " + shellQuote(output.join());
 
-  REQUIRE(std::system(command.c_str()) == 0);
+  REQUIRE(runCommand(command) == 0);
   REQUIRE(FS::exists(output));
   REQUIRE_FALSE(FS::exists(staging, true));
 
-  const auto reader = std::make_shared<ArchiveReader>(output);
-  REQUIRE(extract(reader,
-    Path("Scripts/Remote CLI Preview/Tools/external.lua")) == "external");
+  {
+    const auto reader = std::make_shared<ArchiveReader>(output);
+    REQUIRE(extract(reader,
+      Path("Scripts/Remote CLI Preview/Tools/external.lua")) == "external");
+  }
 
   REQUIRE(FS::remove(index));
   REQUIRE(FS::remove(inputDir));
@@ -197,7 +210,7 @@ TEST_CASE("reject a remote CLI source in offline mode", M) {
     " --offline" +
     " --output " + shellQuote(output.join()) + silenceOutput();
 
-  REQUIRE(std::system(command.c_str()) != 0);
+  REQUIRE(runCommand(command) != 0);
   REQUIRE_FALSE(FS::exists(output));
   REQUIRE_FALSE(FS::exists(staging, true));
 

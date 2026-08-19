@@ -110,50 +110,54 @@ TEST_CASE("build and inspect sources for the current platform", M) {
 
   Archive::build(plan, output);
 
-  const auto reader = std::make_shared<ArchiveReader>(output);
-  std::istringstream manifest(extract(reader, Path("toc")));
-  std::string record;
-  REQUIRE(std::getline(manifest, record));
-  REQUIRE(record.compare(0, 5, "REPO ") == 0);
+  {
+    const auto reader = std::make_shared<ArchiveReader>(output);
+    std::istringstream manifest(extract(reader, Path("toc")));
+    std::string record;
+    REQUIRE(std::getline(manifest, record));
+    REQUIRE(record.compare(0, 5, "REPO ") == 0);
 
-  const Remote repository = Archive::parseRepositoryRecord(record.substr(5));
-  REQUIRE(repository.name() == plan.repository.name());
+    const Remote repository = Archive::parseRepositoryRecord(record.substr(5));
+    REQUIRE(repository.name() == plan.repository.name());
 
-  const std::string cachedIndex = extract(reader,
-    Index::pathFor(repository.name()));
-  const IndexPtr importedIndex = Index::load(repository.name(),
-    cachedIndex.c_str());
+    const std::string cachedIndex = extract(reader,
+      Index::pathFor(repository.name()));
+    const IndexPtr importedIndex = Index::load(repository.name(),
+      cachedIndex.c_str());
 
-  size_t packageCount = 0;
-  size_t payloadCount = 0;
-  while(std::getline(manifest, record)) {
-    REQUIRE(record.compare(0, 5, "PACK ") == 0);
+    size_t packageCount = 0;
+    size_t payloadCount = 0;
+    while(std::getline(manifest, record)) {
+      REQUIRE(record.compare(0, 5, "PACK ") == 0);
 
-    const Archive::PackageRecord packageRecord =
-      Archive::parsePackageRecord(record.substr(5));
-    const Package *package = importedIndex->find(packageRecord.category,
-      packageRecord.package);
-    REQUIRE(package);
+      const Archive::PackageRecord packageRecord =
+        Archive::parsePackageRecord(record.substr(5));
+      const Package *package = importedIndex->find(packageRecord.category,
+        packageRecord.package);
+      REQUIRE(package);
 
-    const Version *version = package->findVersion(packageRecord.version);
-    REQUIRE(version);
+      const Version *version = package->findVersion(packageRecord.version);
+      REQUIRE(version);
 
-    for(const Source *source : version->sources()) {
-      extract(reader, source->targetPath());
-      ++payloadCount;
+      for(const Source *source : version->sources()) {
+        extract(reader, source->targetPath());
+        ++payloadCount;
+      }
+
+      ++packageCount;
     }
 
-    ++packageCount;
+    REQUIRE(packageCount == plan.packages.size());
+    REQUIRE(payloadCount == plan.payloads.size());
+    REQUIRE(extract(reader, Path("Scripts/Preview/Tools/generic.lua")) ==
+      "generic");
+    REQUIRE(extract(reader, Path("Scripts/Preview/Tools/current.lua")) ==
+      "current");
+
+    std::ostringstream missing;
+    REQUIRE(reader->extractFile(Path("Scripts/Preview/Tools/foreign.lua"),
+      missing) != 0);
   }
-
-  REQUIRE(packageCount == plan.packages.size());
-  REQUIRE(payloadCount == plan.payloads.size());
-  REQUIRE(extract(reader, Path("Scripts/Preview/Tools/generic.lua")) == "generic");
-  REQUIRE(extract(reader, Path("Scripts/Preview/Tools/current.lua")) == "current");
-
-  std::ostringstream missing;
-  REQUIRE(reader->extractFile(Path("Scripts/Preview/Tools/foreign.lua"),
-    missing) != 0);
 
   REQUIRE(FS::remove(index));
   REQUIRE(FS::remove(generic));

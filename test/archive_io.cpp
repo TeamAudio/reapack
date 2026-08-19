@@ -87,11 +87,13 @@ TEST_CASE("archive filesystem round trip", M) {
 
   REQUIRE(FS::exists(payload));
 
-  std::ifstream restored;
-  REQUIRE(FS::open(restored, payload));
-  std::ostringstream restoredContents;
-  restoredContents << restored.rdbuf();
-  REQUIRE(restoredContents.str() == contents);
+  {
+    std::ifstream restored;
+    REQUIRE(FS::open(restored, payload));
+    std::ostringstream restoredContents;
+    restoredContents << restored.rdbuf();
+    REQUIRE(restoredContents.str() == contents);
+  }
 
   REQUIRE(FS::removeRecursive(payload));
   REQUIRE(FS::remove(Path("Scripts")));

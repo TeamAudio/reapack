@@ -72,15 +72,18 @@ TEST_CASE("build a ReaPack archive from an explicit plan", M) {
   REQUIRE_FALSE(FS::exists(Path(output.join() + ".part")));
   REQUIRE(readFile(output) == readFile(repeatedOutput));
 
-  const auto reader = std::make_shared<ArchiveReader>(output);
-  REQUIRE(extract(reader, Path("toc")) ==
-    "REPO Project Preview - PR 123|https://example.invalid/index.xml|0|0\n"
-    "PACK \"Scripts/Project\" \"Preview Tools\" \"1.2.3\" 0\n"
-    "PACK \"Data/Project\" \"Preview Data\" \"2.0pre1\" 1\n");
-  REQUIRE(extract(reader,
-    Path("ReaPack/cache/Project Preview - PR 123.xml")) == indexContents);
-  REQUIRE(extract(reader, Path("Scripts/Project/preview.lua")) == scriptContents);
-  REQUIRE(extract(reader, Path("Data/Project/preview.dat")) == dataContents);
+  {
+    const auto reader = std::make_shared<ArchiveReader>(output);
+    REQUIRE(extract(reader, Path("toc")) ==
+      "REPO Project Preview - PR 123|https://example.invalid/index.xml|0|0\n"
+      "PACK \"Scripts/Project\" \"Preview Tools\" \"1.2.3\" 0\n"
+      "PACK \"Data/Project\" \"Preview Data\" \"2.0pre1\" 1\n");
+    REQUIRE(extract(reader,
+      Path("ReaPack/cache/Project Preview - PR 123.xml")) == indexContents);
+    REQUIRE(extract(reader,
+      Path("Scripts/Project/preview.lua")) == scriptContents);
+    REQUIRE(extract(reader, Path("Data/Project/preview.dat")) == dataContents);
+  }
 
   REQUIRE(FS::remove(index));
   REQUIRE(FS::remove(script));
