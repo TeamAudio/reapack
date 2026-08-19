@@ -177,9 +177,19 @@ void LoadSourceV1(XmlNode node, Version *ver, const bool hasArm64Ec,
       std::string(*platform) + "'");
   }
 
+  const char *sourceTypeName = type.value_or("");
+  const Package::Type sourceType = Package::getType(sourceTypeName);
+  if(options.rejectUnsupportedSourceTypes && type &&
+      sourceType == Package::UnknownType) {
+    if(*sourceTypeName)
+      throw reapack_error("unsupported source type '" +
+        std::string(sourceTypeName) + "'");
+    throw reapack_error("empty source type");
+  }
+
   src->setChecksum(checksum.value_or(""));
   src->setPlatform(sourcePlatform);
-  src->setTypeOverride(Package::getType(type.value_or("")));
+  src->setTypeOverride(sourceType);
 
   int sections = 0;
   std::string section;

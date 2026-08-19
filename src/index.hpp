@@ -41,6 +41,7 @@ public:
   struct LoadOptions {
     bool rejectUnsupportedPackageTypes{};
     bool rejectUnsupportedPlatforms{};
+    bool rejectUnsupportedSourceTypes{};
   };
 
   static Path pathFor(const std::string &name);

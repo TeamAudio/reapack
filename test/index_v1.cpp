@@ -322,6 +322,35 @@ TEST_CASE("read source type override", M) {
     == Package::EffectType);
 }
 
+TEST_CASE("unsupported source type override", M) {
+  const char *data =
+    "<index version=\"1\">"
+      "<category name=\"test\">"
+        "<reapack name=\"a\" type=\"script\">"
+          "<version name=\"1.0\">"
+            "<source type=\"future\">a.lua</source>"
+          "</version>"
+        "</reapack>"
+      "</category>"
+    "</index>";
+
+  SECTION("compatible loading treats it as inherited") {
+    IndexPtr ri = Index::load({}, data);
+    REQUIRE(ri->packages().size() == 1);
+    REQUIRE(ri->packages()[0]->version(0)->source(0)->typeOverride()
+      == Package::UnknownType);
+    REQUIRE(ri->packages()[0]->version(0)->source(0)->type()
+      == Package::ScriptType);
+  }
+
+  SECTION("strict loading rejects it") {
+    Index::LoadOptions options;
+    options.rejectUnsupportedSourceTypes = true;
+    REQUIRE_THROWS_WITH(Index::load({}, data, options),
+      "unsupported source type 'future'");
+  }
+}
+
 TEST_CASE("read package description", M) {
   UseRootPath root(RIPATH);
 
