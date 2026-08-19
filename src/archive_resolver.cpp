@@ -99,7 +99,8 @@ Archive::SourceLocator Archive::makeSourceRootLocator(const Path &sourceRoot,
 
   const Path canonicalRoot = FS::canonical(sourceRoot);
 
-  return [canonicalRoot, urlPrefix](const std::string &url) {
+  return [canonicalRoot, urlPrefix](const std::string &url,
+      const std::string &) {
     std::string relative;
 
     if(urlPrefix.empty()) {
@@ -166,7 +167,7 @@ Archive::BuildPlan Archive::resolve(const RepositoryInput &input)
 
     for(const Source *source : version->sources()) {
       plan.payloads.push_back({
-        input.locateSource(source->url()),
+        input.locateSource(source->url(), source->checksum()),
         source->targetPath().join(false),
         source->checksum(),
       });

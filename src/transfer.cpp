@@ -137,6 +137,19 @@ Transfer::Result Transfer::perform(const Request &request,
   curl_easy_setopt(context, CURLOPT_PROXY, request.proxy.c_str());
   curl_easy_setopt(context, CURLOPT_SSL_VERIFYPEER,
     request.verifyPeer ? 1L : 0L);
+#if LIBCURL_VERSION_NUM >= 0x075500
+  if(request.httpOnly) {
+    curl_easy_setopt(context, CURLOPT_PROTOCOLS_STR, "http,https");
+    curl_easy_setopt(context, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+  }
+#else
+  if(request.httpOnly) {
+    curl_easy_setopt(context, CURLOPT_PROTOCOLS,
+      CURLPROTO_HTTP | CURLPROTO_HTTPS);
+    curl_easy_setopt(context, CURLOPT_REDIR_PROTOCOLS,
+      CURLPROTO_HTTP | CURLPROTO_HTTPS);
+  }
+#endif
 #ifdef __APPLE__
   curl_easy_setopt(context, CURLOPT_CAINFO, nullptr);
 #endif

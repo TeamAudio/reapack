@@ -39,6 +39,7 @@ namespace Transfer {
     std::vector<std::string> headers;
     std::function<bool()> aborted;
     bool verifyPeer{true};
+    bool httpOnly{};
   };
 
   struct Result {

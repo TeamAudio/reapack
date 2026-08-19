@@ -24,7 +24,8 @@
 #include <functional>
 
 namespace Archive {
-  using SourceLocator = std::function<Path(const std::string &url)>;
+  using SourceLocator = std::function<Path(const std::string &url,
+    const std::string &checksum)>;
 
   struct RepositoryInput {
     Remote repository;

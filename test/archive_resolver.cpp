@@ -89,9 +89,9 @@ TEST_CASE("build and inspect sources for the current platform", M) {
   input.repository = Remote("Preview", "https://example.invalid/index.xml",
     false, false);
   input.index = index;
-  input.locateSource = [&](const std::string &url) {
+  input.locateSource = [&](const std::string &url, const std::string &checksum) {
     located.push_back(url);
-    return locate(url);
+    return locate(url, checksum);
   };
 
   const Archive::BuildPlan plan = Archive::resolve(input);
@@ -172,39 +172,40 @@ TEST_CASE("locate URL paths beneath a source root", M) {
 
   SECTION("relative URL") {
     const auto locate = Archive::makeSourceRootLocator(inputDir);
-    REQUIRE(locate("space%20name.lua") == FS::canonical(source));
+    REQUIRE(locate("space%20name.lua", {}) == FS::canonical(source));
   }
 
   SECTION("current directory source root") {
     UseRootPath useInputDir(FS::canonical(inputDir));
     const auto locate = Archive::makeSourceRootLocator(Path("."));
-    REQUIRE(locate("space%20name.lua") == FS::canonical(Path("space name.lua")));
+    REQUIRE(locate("space%20name.lua", {}) ==
+      FS::canonical(Path("space name.lua")));
   }
 
   SECTION("absolute URL with prefix") {
     const auto locate = Archive::makeSourceRootLocator(inputDir,
       "https://preview.invalid/files/");
-    REQUIRE(locate("https://preview.invalid/files/space%20name.lua") ==
+    REQUIRE(locate("https://preview.invalid/files/space%20name.lua", {}) ==
       FS::canonical(source));
   }
 
   SECTION("absolute URL without prefix") {
     const auto locate = Archive::makeSourceRootLocator(inputDir);
-    REQUIRE_THROWS_AS(locate("https://preview.invalid/files/source.lua"),
+    REQUIRE_THROWS_AS(locate("https://preview.invalid/files/source.lua", {}),
       reapack_error);
   }
 
   SECTION("URL outside prefix") {
     const auto locate = Archive::makeSourceRootLocator(inputDir,
       "https://preview.invalid/files/");
-    REQUIRE_THROWS_AS(locate("https://other.invalid/files/source.lua"),
+    REQUIRE_THROWS_AS(locate("https://other.invalid/files/source.lua", {}),
       reapack_error);
   }
 
   SECTION("parent traversal") {
     const auto locate = Archive::makeSourceRootLocator(inputDir);
-    REQUIRE_THROWS_AS(locate("../source.lua"), reapack_error);
-    REQUIRE_THROWS_AS(locate("%2e%2e/source.lua"), reapack_error);
+    REQUIRE_THROWS_AS(locate("../source.lua", {}), reapack_error);
+    REQUIRE_THROWS_AS(locate("%2e%2e/source.lua", {}), reapack_error);
   }
 
 #ifndef _WIN32
@@ -216,7 +217,7 @@ TEST_CASE("locate URL paths beneath a source root", M) {
       (root + link).join().c_str()) == 0);
 
     const auto locate = Archive::makeSourceRootLocator(inputDir);
-    REQUIRE_THROWS_AS(locate("escape.lua"), reapack_error);
+    REQUIRE_THROWS_AS(locate("escape.lua", {}), reapack_error);
 
     REQUIRE(FS::remove(link));
     REQUIRE(FS::remove(outside));
@@ -225,7 +226,7 @@ TEST_CASE("locate URL paths beneath a source root", M) {
 
   SECTION("URL query") {
     const auto locate = Archive::makeSourceRootLocator(inputDir);
-    REQUIRE_THROWS_AS(locate("source.lua?download=1"), reapack_error);
+    REQUIRE_THROWS_AS(locate("source.lua?download=1", {}), reapack_error);
   }
 
   REQUIRE(FS::remove(source));
@@ -253,7 +254,9 @@ TEST_CASE("reject unsupported package types", M) {
   Archive::RepositoryInput input;
   input.repository = Remote("Preview", "https://example.invalid/index.xml");
   input.index = index;
-  input.locateSource = [](const std::string &) { return Path(); };
+  input.locateSource = [](const std::string &, const std::string &) {
+    return Path();
+  };
 
   REQUIRE_THROWS_WITH(Archive::resolve(input),
     "unsupported package type 'future'");
@@ -283,7 +286,9 @@ TEST_CASE("reject unsupported source platforms", M) {
   Archive::RepositoryInput input;
   input.repository = Remote("Preview", "https://example.invalid/index.xml");
   input.index = index;
-  input.locateSource = [](const std::string &) { return Path(); };
+  input.locateSource = [](const std::string &, const std::string &) {
+    return Path();
+  };
 
   REQUIRE_THROWS_WITH(Archive::resolve(input),
     "unsupported source platform 'future'");
@@ -313,7 +318,9 @@ TEST_CASE("reject unsupported source type overrides", M) {
   Archive::RepositoryInput input;
   input.repository = Remote("Preview", "https://example.invalid/index.xml");
   input.index = index;
-  input.locateSource = [](const std::string &) { return Path(); };
+  input.locateSource = [](const std::string &, const std::string &) {
+    return Path();
+  };
 
   REQUIRE_THROWS_WITH(Archive::resolve(input),
     "unsupported source type 'future'");
@@ -344,7 +351,9 @@ TEST_CASE("reject duplicate source targets", M) {
   Archive::RepositoryInput input;
   input.repository = Remote("Preview", "https://example.invalid/index.xml");
   input.index = index;
-  input.locateSource = [](const std::string &) { return Path(); };
+  input.locateSource = [](const std::string &, const std::string &) {
+    return Path();
+  };
 
   REQUIRE_THROWS_WITH(Archive::resolve(input),
     "duplicate source target 'Data/shared.dat'");
