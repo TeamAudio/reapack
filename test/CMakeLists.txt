@@ -4,6 +4,7 @@ mark_as_advanced(Catch2_DIR)
 add_executable(tests EXCLUDE_FROM_ALL
   action.cpp
   api.cpp
+  archive_io.cpp
   database.cpp
   event.cpp
   filesystem.cpp
@@ -30,7 +31,10 @@ add_executable(tests EXCLUDE_FROM_ALL
 )
 
 # std::uncaught_exceptions is unavailable prior to macOS 10.12
-target_compile_definitions(tests PRIVATE CATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS)
+target_compile_definitions(tests PRIVATE
+  CATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS
+  REAPACK_TEST_BINARY_DIR="${CMAKE_CURRENT_BINARY_DIR}"
+)
 target_include_directories(tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src
   ${CMAKE_SOURCE_DIR}/vendor ${CMAKE_SOURCE_DIR}/vendor/reaper-sdk/sdk
