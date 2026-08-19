@@ -219,3 +219,33 @@ TEST_CASE("reject unsupported package types", M) {
   REQUIRE(FS::remove(index));
   REQUIRE(FS::remove(inputDir));
 }
+
+TEST_CASE("reject unsupported source platforms", M) {
+  const Path root(REAPACK_TEST_BINARY_DIR);
+  const Path inputDir("archive-unsupported-platform");
+  const Path index = inputDir + "index.xml";
+  const std::string xml =
+    "<index version=\"1\">"
+      "<category name=\"Tools\">"
+        "<reapack name=\"Preview\" type=\"script\">"
+          "<version name=\"1.0\">"
+            "<source platform=\"future\">preview.lua</source>"
+          "</version>"
+        "</reapack>"
+      "</category>"
+    "</index>";
+
+  UseRootPath useRoot(root);
+  REQUIRE(FS::write(index, xml));
+
+  Archive::RepositoryInput input;
+  input.repository = Remote("Preview", "https://example.invalid/index.xml");
+  input.index = index;
+  input.locateSource = [](const std::string &) { return Path(); };
+
+  REQUIRE_THROWS_WITH(Archive::resolve(input),
+    "unsupported source platform 'future'");
+
+  REQUIRE(FS::remove(index));
+  REQUIRE(FS::remove(inputDir));
+}

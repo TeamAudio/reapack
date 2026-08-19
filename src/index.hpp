@@ -40,6 +40,7 @@ class Index : public std::enable_shared_from_this<const Index> {
 public:
   struct LoadOptions {
     bool rejectUnsupportedPackageTypes{};
+    bool rejectUnsupportedPlatforms{};
   };
 
   static Path pathFor(const std::string &name);

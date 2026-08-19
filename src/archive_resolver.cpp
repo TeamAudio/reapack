@@ -142,6 +142,7 @@ Archive::BuildPlan Archive::resolve(const RepositoryInput &input)
 
   Index::LoadOptions loadOptions;
   loadOptions.rejectUnsupportedPackageTypes = true;
+  loadOptions.rejectUnsupportedPlatforms = true;
   const IndexPtr index = Index::load(input.repository.name(),
     indexContents.str().c_str(), loadOptions);
 

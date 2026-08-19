@@ -287,6 +287,31 @@ TEST_CASE("read source platform", M) {
     == expected);
 }
 
+TEST_CASE("unsupported source platform", M) {
+  const char *data =
+    "<index version=\"1\">"
+      "<category name=\"test\">"
+        "<reapack name=\"a\" type=\"script\">"
+          "<version name=\"1.0\">"
+            "<source platform=\"future\">a.lua</source>"
+          "</version>"
+        "</reapack>"
+      "</category>"
+    "</index>";
+
+  SECTION("compatible loading ignores it") {
+    IndexPtr ri = Index::load({}, data);
+    REQUIRE(ri->packages().empty());
+  }
+
+  SECTION("strict loading rejects it") {
+    Index::LoadOptions options;
+    options.rejectUnsupportedPlatforms = true;
+    REQUIRE_THROWS_WITH(Index::load({}, data, options),
+      "unsupported source platform 'future'");
+  }
+}
+
 TEST_CASE("read source type override", M) {
   UseRootPath root(RIPATH);
 

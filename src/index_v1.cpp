@@ -25,8 +25,9 @@
 static void LoadMetadataV1(XmlNode, Metadata *);
 static void LoadCategoryV1(XmlNode, Index *, const Index::LoadOptions &);
 static void LoadPackageV1(XmlNode, Category *, const Index::LoadOptions &);
-static void LoadVersionV1(XmlNode, Package *);
-static void LoadSourceV1(XmlNode, Version *, bool hasArm64Ec);
+static void LoadVersionV1(XmlNode, Package *, const Index::LoadOptions &);
+static void LoadSourceV1(XmlNode, Version *, bool hasArm64Ec,
+  const Index::LoadOptions &);
 
 void Index::loadV1(XmlNode root, Index *ri, const LoadOptions &options)
 {
@@ -103,7 +104,7 @@ void LoadPackageV1(XmlNode packNode, Category *cat,
 
   for(XmlNode node = packNode.firstChild("version");
       node; node = node.nextSibling("version"))
-    LoadVersionV1(node, pack);
+    LoadVersionV1(node, pack, options);
 
   if(XmlNode node = packNode.firstChild("metadata"))
     LoadMetadataV1(node, pack->metadata());
@@ -112,7 +113,8 @@ void LoadPackageV1(XmlNode packNode, Category *cat,
     ptr.release();
 }
 
-void LoadVersionV1(XmlNode verNode, Package *pkg)
+void LoadVersionV1(XmlNode verNode, Package *pkg,
+  const Index::LoadOptions &options)
 {
   const XmlString &name = verNode.attribute("name");
   Version *ver = new Version(name.value_or(""), pkg);
@@ -140,7 +142,7 @@ void LoadVersionV1(XmlNode verNode, Package *pkg)
 #endif
 
   while(node) {
-    LoadSourceV1(node, ver, hasArm64Ec);
+    LoadSourceV1(node, ver, hasArm64Ec, options);
     node = node.nextSibling("source");
   }
 
@@ -155,7 +157,8 @@ void LoadVersionV1(XmlNode verNode, Package *pkg)
     ptr.release();
 }
 
-void LoadSourceV1(XmlNode node, Version *ver, const bool hasArm64Ec)
+void LoadSourceV1(XmlNode node, Version *ver, const bool hasArm64Ec,
+  const Index::LoadOptions &options)
 {
   const XmlString &platform = node.attribute("platform"),
                   &type     = node.attribute("type"),
@@ -167,8 +170,15 @@ void LoadSourceV1(XmlNode node, Version *ver, const bool hasArm64Ec)
   Source *src = new Source(file.value_or(""), url.value_or(""), ver);
   std::unique_ptr<Source> ptr(src);
 
+  const Platform sourcePlatform(platform.value_or("all"), hasArm64Ec);
+  if(options.rejectUnsupportedPlatforms &&
+      sourcePlatform == Platform::Unknown) {
+    throw reapack_error("unsupported source platform '" +
+      std::string(*platform) + "'");
+  }
+
   src->setChecksum(checksum.value_or(""));
-  src->setPlatform(Platform(platform.value_or("all"), hasArm64Ec));
+  src->setPlatform(sourcePlatform);
   src->setTypeOverride(Package::getType(type.value_or("")));
 
   int sections = 0;
