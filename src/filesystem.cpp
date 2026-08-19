@@ -1,5 +1,6 @@
 /* ReaPack: Package manager for REAPER
  * Copyright (C) 2015-2025  Christian Fillion
+ * Copyright (C) 2026       Michael DeFreitas
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -179,10 +180,17 @@ bool FS::mkdir(const Path &path)
   if(exists(path, true))
     return true;
 
-  Path fullPath = Path::root();
+  const Path target = path.prependRoot();
+  if(target.empty())
+    return true;
 
-  for(const std::string &dir : path) {
-    fullPath.append(dir);
+  Path fullPath(target);
+  while(fullPath.size() > 1)
+    fullPath.removeLast();
+
+  for(size_t i = 0; i < target.size(); ++i) {
+    if(i)
+      fullPath.append(target[i]);
 
     const auto &joined = Unicode::widen(fullPath.join());
 
