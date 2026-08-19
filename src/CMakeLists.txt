@@ -1,6 +1,7 @@
 include(CheckCXXCompilerFlag)
 
 find_package(Boost 1.56 REQUIRED)
+find_package(CURL       REQUIRED)
 find_package(MiniZip    REQUIRED)
 
 if(WIN32)
@@ -30,6 +31,7 @@ add_library(reapack_archive STATIC
   source.cpp
   string.cpp
   time.cpp
+  transfer.cpp
   unicode.cpp
   version.cpp
   xml_$<IF:$<BOOL:${LIBXML2_FOUND}>,libxml2,tinyxml2>.cpp
@@ -41,6 +43,8 @@ target_link_libraries(reapack_archive PUBLIC
   Boost::headers MiniZip::MiniZip
   $<IF:$<BOOL:${LIBXML2_FOUND}>,LibXml2::LibXml2,tinyxml2::tinyxml2>
 )
+target_link_libraries(reapack_archive PRIVATE CURL::libcurl)
+target_compile_definitions(reapack_archive PRIVATE CURL_DISABLE_DEPRECATION)
 
 if(WIN32)
   target_compile_options(reapack_archive PRIVATE /W3 /WX /wd4996)
@@ -69,7 +73,6 @@ if(NOT REAPACK_BUILD_PLUGIN)
   return()
 endif()
 
-find_package(CURL    REQUIRED)
 find_package(Threads REQUIRED)
 find_package(WDL     REQUIRED)
 
@@ -155,7 +158,6 @@ add_library(reapack OBJECT
   tabbar.cpp
   task.cpp
   thread.cpp
-  transfer.cpp
   transaction.cpp
   win32.cpp
 )
@@ -180,11 +182,10 @@ endif()
 
 target_link_libraries(reapack
   reapack_archive
-  ${CMAKE_DL_LIBS} Boost::headers CURL::libcurl MiniZip::MiniZip
+  ${CMAKE_DL_LIBS} Boost::headers MiniZip::MiniZip
   SQLite::SQLite3 Threads::Threads WDL::WDL
   $<IF:$<BOOL:${LIBXML2_FOUND}>,LibXml2::LibXml2,tinyxml2::tinyxml2>
 )
-target_compile_definitions(reapack PRIVATE CURL_DISABLE_DEPRECATION)
 
 if(SWELL_FOUND)
   target_link_libraries(reapack SWELL::swell)

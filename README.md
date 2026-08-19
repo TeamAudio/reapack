@@ -107,8 +107,9 @@ ReaPack repository into an offline archive:
       --repository-name "Project Preview" \
       --output build/project-preview.ReaPackArchive
 
-This configuration skips dependencies used only by the REAPER extension. To
-also build and run the archive test suite, configure with
+This configuration skips dependencies used only by the REAPER extension, such
+as SQLite, WDL, and SWELL. CURL is shared with the archive command's source
+transfer layer. To also build and run the archive test suite, configure with
 `-DREAPACK_BUILD_TESTS=ON` and build the `test` target.
 
 `--repository-name` becomes the repository identity stored in the archive.

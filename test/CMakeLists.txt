@@ -1,4 +1,5 @@
 find_package(Catch2 REQUIRED)
+find_package(Threads REQUIRED)
 mark_as_advanced(Catch2_DIR)
 
 add_executable(archive_tests EXCLUDE_FROM_ALL
@@ -9,13 +10,19 @@ add_executable(archive_tests EXCLUDE_FROM_ALL
   archive_resolver.cpp
   helper.cpp
   helper.hpp
+  transfer.cpp
 )
 target_compile_definitions(archive_tests PRIVATE
   CATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS
   REAPACK_ARCHIVE_EXECUTABLE="$<TARGET_FILE:reapack-archive>"
   REAPACK_TEST_BINARY_DIR="${CMAKE_CURRENT_BINARY_DIR}"
 )
-target_link_libraries(archive_tests Catch2::Catch2WithMain reapack_archive)
+target_link_libraries(archive_tests
+  Catch2::Catch2WithMain reapack_archive Threads::Threads
+)
+if(WIN32)
+  target_link_libraries(archive_tests Ws2_32)
+endif()
 add_dependencies(archive_tests reapack-archive)
 
 if(NOT REAPACK_BUILD_PLUGIN)

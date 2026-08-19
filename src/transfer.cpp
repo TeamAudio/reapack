@@ -131,7 +131,7 @@ Transfer::Result Transfer::perform(const Request &request,
     write.hash = std::make_unique<Hash>(algorithm);
   }
 
-  thread_local CurlContext context;
+  CurlContext context;
   curl_easy_setopt(context, CURLOPT_URL, request.url.c_str());
   curl_easy_setopt(context, CURLOPT_USERAGENT, request.userAgent.c_str());
   curl_easy_setopt(context, CURLOPT_PROXY, request.proxy.c_str());
