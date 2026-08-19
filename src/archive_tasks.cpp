@@ -26,10 +26,64 @@
 #include "string.hpp"
 #include "transaction.hpp"
 
+#include <fstream>
 #include <iomanip>
 #include <sstream>
 
 static const Path ARCHIVE_TOC("toc");
+
+FileExtractor::FileExtractor(const Path &target, const ArchiveReaderPtr &reader)
+  : m_path(target), m_reader(reader)
+{
+  setSummary({ "Extracting", target.join() });
+}
+
+bool FileExtractor::run()
+{
+  std::ofstream stream;
+  if(!FS::open(stream, m_path.temp())) {
+    setError({FS::lastError(), m_path.temp().join()});
+    return false;
+  }
+
+  const int error = m_reader->extractFile(m_path.target(), stream);
+  stream.close();
+
+  if(error) {
+    setError({String::format("Failed to extract file (%d)", error),
+      m_path.target().join()});
+    return false;
+  }
+
+  return true;
+}
+
+FileCompressor::FileCompressor(const Path &target, const ArchiveWriterPtr &writer)
+  : m_path(target), m_writer(writer)
+{
+  setSummary({ "Compressing", target.join() });
+}
+
+bool FileCompressor::run()
+{
+  std::ifstream stream;
+  if(!FS::open(stream, m_path)) {
+    setError({
+      String::format("Could not open file for export (%s)", FS::lastError()),
+      m_path.join()});
+    return false;
+  }
+
+  const int error = m_writer->addFile(m_path, stream);
+  stream.close();
+
+  if(error) {
+    setError({String::format("Failed to compress file (%d)", error), m_path.join()});
+    return false;
+  }
+
+  return true;
+}
 
 ExportTask::ExportTask(const std::string &path, Transaction *tx)
   : Task(tx), m_path(path)

@@ -18,42 +18,14 @@
 #ifndef REAPACK_ARCHIVE_HPP
 #define REAPACK_ARCHIVE_HPP
 
-#include "path.hpp"
+#include "archive_io.hpp"
 #include "thread.hpp"
 
 class ThreadPool;
 
-typedef void *zipFile;
-
 namespace Archive {
   void import(const std::string &path);
 };
-
-class ArchiveReader {
-public:
-  ArchiveReader(const Path &path);
-  ~ArchiveReader();
-  int extractFile(const Path &);
-  int extractFile(const Path &, std::ostream &) noexcept;
-
-private:
-  zipFile m_zip;
-};
-
-typedef std::shared_ptr<ArchiveReader> ArchiveReaderPtr;
-
-class ArchiveWriter {
-public:
-  ArchiveWriter(const Path &path);
-  ~ArchiveWriter();
-  int addFile(const Path &fn);
-  int addFile(const Path &fn, std::istream &) noexcept;
-
-private:
-  zipFile m_zip;
-};
-
-typedef std::shared_ptr<ArchiveWriter> ArchiveWriterPtr;
 
 class FileExtractor : public ThreadTask {
 public:

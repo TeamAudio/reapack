@@ -64,6 +64,7 @@ add_library(reapack OBJECT
   api_package.cpp
   api_repo.cpp
   archive.cpp
+  archive_io.cpp
   archive_tasks.cpp
   browser.cpp
   browser_entry.cpp
