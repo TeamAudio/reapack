@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.15)
 
 option(RUNTIME_OPENSSL
   "Load OpenSSL at runtime instead of linking against a specific version" OFF)
+option(REAPACK_BUILD_PLUGIN "Build the ReaPack REAPER extension" ON)
+option(REAPACK_BUILD_TESTS "Build the ReaPack test suites" ${REAPACK_BUILD_PLUGIN})
 
 if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
@@ -16,7 +18,7 @@ project(reapack LANGUAGES C CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+if(REAPACK_BUILD_PLUGIN AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   if(WIN32)
     set(USER_CONFIG_DIR "$ENV{APPDATA}")
   elseif(APPLE)
@@ -104,26 +106,44 @@ if(RUBY_FOUND)
   )
 endif()
 
-add_library(reaper_reapack SHARED)
-set_target_properties(reaper_reapack PROPERTIES
-  PREFIX "" # disable the "lib" prefix
-  OUTPUT_NAME "reaper_reapack-${ARCH_NAME}"
-)
+if(REAPACK_BUILD_PLUGIN)
+  add_library(reaper_reapack SHARED)
+  set_target_properties(reaper_reapack PROPERTIES
+    PREFIX "" # disable the "lib" prefix
+    OUTPUT_NAME "reaper_reapack-${ARCH_NAME}"
+  )
+endif()
+
 add_subdirectory(src)
-target_link_libraries(reaper_reapack reapack)
 
-add_subdirectory(test)
-add_custom_target(test
-  COMMAND $<TARGET_FILE:archive_tests>
-  COMMAND $<TARGET_FILE:tests>
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  USES_TERMINAL
-)
-add_dependencies(test archive_tests tests)
+if(REAPACK_BUILD_PLUGIN)
+  target_link_libraries(reaper_reapack reapack)
 
-set(REAPER_USER_PLUGINS "UserPlugins")
-install(TARGETS reaper_reapack
-  COMPONENT ReaPack
-  RUNTIME DESTINATION "${REAPER_USER_PLUGINS}" # Windows .dll
-  LIBRARY DESTINATION "${REAPER_USER_PLUGINS}" # Linux .so/macOS .dylib
-)
+  set(REAPER_USER_PLUGINS "UserPlugins")
+  install(TARGETS reaper_reapack
+    COMPONENT ReaPack
+    RUNTIME DESTINATION "${REAPER_USER_PLUGINS}" # Windows .dll
+    LIBRARY DESTINATION "${REAPER_USER_PLUGINS}" # Linux .so/macOS .dylib
+  )
+endif()
+
+if(REAPACK_BUILD_TESTS)
+  add_subdirectory(test)
+
+  if(REAPACK_BUILD_PLUGIN)
+    add_custom_target(test
+      COMMAND $<TARGET_FILE:archive_tests>
+      COMMAND $<TARGET_FILE:tests>
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      USES_TERMINAL
+    )
+    add_dependencies(test archive_tests tests)
+  else()
+    add_custom_target(test
+      COMMAND $<TARGET_FILE:archive_tests>
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      USES_TERMINAL
+    )
+    add_dependencies(test archive_tests)
+  endif()
+endif()

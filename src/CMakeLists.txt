@@ -1,60 +1,17 @@
 include(CheckCXXCompilerFlag)
 
 find_package(Boost 1.56 REQUIRED)
-find_package(CURL       REQUIRED)
 find_package(MiniZip    REQUIRED)
-find_package(Threads    REQUIRED)
-find_package(WDL        REQUIRED)
 
 if(WIN32)
-  # required for selecting the right debug or release version
-  find_package(unofficial-sqlite3 CONFIG REQUIRED)
-  add_library(SQLite::SQLite3 INTERFACE IMPORTED)
-  target_link_libraries(SQLite::SQLite3 INTERFACE unofficial::sqlite3::sqlite3)
-
   find_package(tinyxml2 CONFIG REQUIRED)
 else()
-  find_package(SWELL REQUIRED)
   find_package(LibXml2 REQUIRED)
-  find_package(SQLite3 REQUIRED)
 
   if(NOT APPLE)
     find_package(OpenSSL REQUIRED COMPONENTS Crypto)
   endif()
 endif()
-
-find_package(Git)
-if(GIT_FOUND)
-  execute_process(
-    COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
-    OUTPUT_VARIABLE REAPACK_REVISION
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    RESULT_VARIABLE IS_GIT_BUILD
-    ERROR_QUIET
-  )
-endif()
-
-if(NOT IS_GIT_BUILD EQUAL 0)
-  set(REAPACK_REVISION "nogit")
-endif()
-
-get_target_property(REAPACK_BASENAME reaper_reapack OUTPUT_NAME)
-set(REAPACK_FILENAME "${REAPACK_BASENAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
-
-file(STRINGS ../Extensions/ReaPack.ext REAPACK_VERSION REGEX "^@version")
-string(SUBSTRING ${REAPACK_VERSION} 9 -1 REAPACK_VERSION)
-string(REGEX REPLACE "[^0-9]+" ";" VERSION_LIST ${REAPACK_VERSION})
-list(TRANSFORM VERSION_LIST REPLACE "[^0-9]" "")
-list(APPEND VERSION_LIST 0 0 0)
-list(GET VERSION_LIST 0 REAPACK_VERSION_MAJOR)
-list(GET VERSION_LIST 1 REAPACK_VERSION_MINOR)
-list(GET VERSION_LIST 2 REAPACK_VERSION_PATCH)
-list(GET VERSION_LIST 3 REAPACK_VERSION_TWEAK)
-
-string(TIMESTAMP REAPACK_BUILDTIME "%b %d %Y %H:%M:%S" UTC)
-file(STRINGS ../ABOUT.md REAPACK_COPYRIGHT REGEX "^Copyright")
-
-configure_file(buildinfo.hpp.in buildinfo.hpp)
 
 add_library(reapack_archive STATIC
   archive_builder.cpp
@@ -106,6 +63,57 @@ endif()
 
 add_executable(reapack-archive archive_cli.cpp)
 target_link_libraries(reapack-archive PRIVATE reapack_archive)
+
+if(NOT REAPACK_BUILD_PLUGIN)
+  return()
+endif()
+
+find_package(CURL    REQUIRED)
+find_package(Threads REQUIRED)
+find_package(WDL     REQUIRED)
+
+if(WIN32)
+  # required for selecting the right debug or release version
+  find_package(unofficial-sqlite3 CONFIG REQUIRED)
+  add_library(SQLite::SQLite3 INTERFACE IMPORTED)
+  target_link_libraries(SQLite::SQLite3 INTERFACE unofficial::sqlite3::sqlite3)
+else()
+  find_package(SWELL REQUIRED)
+  find_package(SQLite3 REQUIRED)
+endif()
+
+find_package(Git)
+if(GIT_FOUND)
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
+    OUTPUT_VARIABLE REAPACK_REVISION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE IS_GIT_BUILD
+    ERROR_QUIET
+  )
+endif()
+
+if(NOT IS_GIT_BUILD EQUAL 0)
+  set(REAPACK_REVISION "nogit")
+endif()
+
+get_target_property(REAPACK_BASENAME reaper_reapack OUTPUT_NAME)
+set(REAPACK_FILENAME "${REAPACK_BASENAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+
+file(STRINGS ../Extensions/ReaPack.ext REAPACK_VERSION REGEX "^@version")
+string(SUBSTRING ${REAPACK_VERSION} 9 -1 REAPACK_VERSION)
+string(REGEX REPLACE "[^0-9]+" ";" VERSION_LIST ${REAPACK_VERSION})
+list(TRANSFORM VERSION_LIST REPLACE "[^0-9]" "")
+list(APPEND VERSION_LIST 0 0 0)
+list(GET VERSION_LIST 0 REAPACK_VERSION_MAJOR)
+list(GET VERSION_LIST 1 REAPACK_VERSION_MINOR)
+list(GET VERSION_LIST 2 REAPACK_VERSION_PATCH)
+list(GET VERSION_LIST 3 REAPACK_VERSION_TWEAK)
+
+string(TIMESTAMP REAPACK_BUILDTIME "%b %d %Y %H:%M:%S" UTC)
+file(STRINGS ../ABOUT.md REAPACK_COPYRIGHT REGEX "^Copyright")
+
+configure_file(buildinfo.hpp.in buildinfo.hpp)
 
 add_library(reapack OBJECT
   about.cpp

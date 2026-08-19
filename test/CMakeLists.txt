@@ -17,6 +17,10 @@ target_compile_definitions(archive_tests PRIVATE
 target_link_libraries(archive_tests Catch2::Catch2WithMain reapack_archive)
 add_dependencies(archive_tests reapack-archive)
 
+if(NOT REAPACK_BUILD_PLUGIN)
+  return()
+endif()
+
 add_executable(tests EXCLUDE_FROM_ALL
   action.cpp
   api.cpp
