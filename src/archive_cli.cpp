@@ -48,6 +48,7 @@ static void printUsage(std::ostream &stream)
     "Usage: reapack-archive [options]\n"
     "\n"
     "Build an offline ReaPack archive from a local repository index.\n"
+    "The latest package versions are resolved for the current platform.\n"
     "The generated repository is disabled to prevent automatic synchronization.\n"
     "\n"
     "Required options:\n"

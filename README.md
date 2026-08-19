@@ -94,6 +94,31 @@ The following targets are available:
   (as specified in `CMAKE_INSTALL_PREFIX`)
 - **`test`**: Build and run the test suite
 
+### Build an offline archive
+
+The `reapack-archive` target builds a standalone command for turning a local
+ReaPack repository into an offline archive:
+
+    cmake --build build --target reapack-archive
+    ./build/src/reapack-archive \
+      --index build/index.xml \
+      --source-root . \
+      --repository-name "Project Preview" \
+      --output build/project-preview.ReaPackArchive
+
+Relative source URLs in the index are resolved beneath `--source-root`. If the
+index contains absolute source URLs, pass their common base using
+`--source-url-prefix`. Run `reapack-archive --help` for all options.
+
+The archive contains the latest version of each package and the sources
+applicable to the platform on which the command is running (including sources
+marked for all platforms). Build separate archives on each target platform
+when a repository contains platform-specific sources.
+
+The generated repository is disabled and uses a non-fetchable placeholder URL
+by default. Testers can load the result using ReaPack's **Import offline
+archive...** action; importing remains an explicit user action.
+
 ### Cross-compilation
 
 #### Linux
