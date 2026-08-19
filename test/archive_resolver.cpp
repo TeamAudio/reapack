@@ -133,6 +133,12 @@ TEST_CASE("locate URL paths beneath a source root", M) {
     REQUIRE(locate("space%20name.lua") == FS::canonical(source));
   }
 
+  SECTION("current directory source root") {
+    UseRootPath useInputDir(FS::canonical(inputDir));
+    const auto locate = Archive::makeSourceRootLocator(Path("."));
+    REQUIRE(locate("space%20name.lua") == FS::canonical(Path("space name.lua")));
+  }
+
   SECTION("absolute URL with prefix") {
     const auto locate = Archive::makeSourceRootLocator(inputDir,
       "https://preview.invalid/files/");

@@ -3,6 +3,7 @@ mark_as_advanced(Catch2_DIR)
 
 add_executable(archive_tests EXCLUDE_FROM_ALL
   archive_builder.cpp
+  archive_cli.cpp
   archive_io.cpp
   archive_resolver.cpp
   helper.cpp
@@ -10,9 +11,11 @@ add_executable(archive_tests EXCLUDE_FROM_ALL
 )
 target_compile_definitions(archive_tests PRIVATE
   CATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS
+  REAPACK_ARCHIVE_EXECUTABLE="$<TARGET_FILE:reapack-archive>"
   REAPACK_TEST_BINARY_DIR="${CMAKE_CURRENT_BINARY_DIR}"
 )
 target_link_libraries(archive_tests Catch2::Catch2WithMain reapack_archive)
+add_dependencies(archive_tests reapack-archive)
 
 add_executable(tests EXCLUDE_FROM_ALL
   action.cpp

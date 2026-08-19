@@ -104,6 +104,9 @@ if(OPENSSL_FOUND)
   endif()
 endif()
 
+add_executable(reapack-archive archive_cli.cpp)
+target_link_libraries(reapack-archive PRIVATE reapack_archive)
+
 add_library(reapack OBJECT
   about.cpp
   action.cpp

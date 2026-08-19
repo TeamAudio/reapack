@@ -32,7 +32,8 @@
 
 static auto nativePath(const Path &path)
 {
-  return Unicode::widen(path.prependRoot().join());
+  const std::string joined = path.prependRoot().join();
+  return Unicode::widen(joined.empty() ? "." : joined);
 }
 
 static bool stat(const Path &path, struct stat *out)
