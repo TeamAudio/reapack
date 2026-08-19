@@ -10,6 +10,8 @@ add_executable(archive_tests EXCLUDE_FROM_ALL
   archive_resolver.cpp
   helper.cpp
   helper.hpp
+  http_server.cpp
+  http_server.hpp
   transfer.cpp
 )
 target_compile_definitions(archive_tests PRIVATE

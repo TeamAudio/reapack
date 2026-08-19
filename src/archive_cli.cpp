@@ -17,7 +17,7 @@
  */
 
 #include "archive_builder.hpp"
-#include "archive_resolver.hpp"
+#include "archive_source.hpp"
 #include "remote.hpp"
 
 #include <iostream>
@@ -34,6 +34,7 @@ struct Options {
   std::string repositoryName;
   std::string repositoryUrl{DEFAULT_REPOSITORY_URL};
   std::string output;
+  bool offline{};
   bool help{};
 };
 
@@ -47,9 +48,11 @@ static void printUsage(std::ostream &stream)
   stream <<
     "Usage: reapack-archive [options]\n"
     "\n"
-    "Build an offline ReaPack archive from a local repository index.\n"
+    "Build an offline ReaPack archive from a repository index.\n"
     "The latest package versions are resolved for the current platform.\n"
     "The generated repository is disabled to prevent automatic synchronization.\n"
+    "Relative and prefix-mapped sources are read locally; other HTTP(S)\n"
+    "sources are downloaded unless --offline is used.\n"
     "\n"
     "Required options:\n"
     "  --index PATH                Local index.xml\n"
@@ -59,6 +62,7 @@ static void printUsage(std::ostream &stream)
     "\n"
     "Optional:\n"
     "  --source-url-prefix URL     Prefix stripped from absolute source URLs\n"
+    "  --offline                   Reject sources that require downloading\n"
     "  --repository-url URL        Stored URL (default: offline placeholder)\n"
     "  -h, --help                  Show this help\n";
 }
@@ -99,6 +103,8 @@ static Options parseOptions(const int argc, char **argv)
       setOption(&options.sourceRoot, takeValue(argc, argv, &i, option), option);
     else if(option == "--source-url-prefix")
       setOption(&options.sourceUrlPrefix, takeValue(argc, argv, &i, option), option);
+    else if(option == "--offline")
+      options.offline = true;
     else if(option == "--repository-name")
       setOption(&options.repositoryName, takeValue(argc, argv, &i, option), option);
     else if(option == "--repository-url") {
@@ -141,8 +147,14 @@ int main(const int argc, char **argv)
     input.repository = Remote(options.repositoryName, options.repositoryUrl,
       false, false);
     input.index = Path(options.index);
-    input.locateSource = Archive::makeSourceRootLocator(
-      Path(options.sourceRoot), options.sourceUrlPrefix);
+
+    Archive::SourceAcquireOptions sourceOptions;
+    sourceOptions.sourceRoot = Path(options.sourceRoot);
+    sourceOptions.sourceUrlPrefix = options.sourceUrlPrefix;
+    sourceOptions.stagingRoot = Path(options.output + ".sources.part");
+    sourceOptions.offline = options.offline;
+    Archive::SourceAcquirer sources(sourceOptions);
+    input.locateSource = sources.locator();
 
     const Archive::BuildPlan plan = Archive::resolve(input);
     Archive::build(plan, Path(options.output));

@@ -96,8 +96,8 @@ The following targets are available:
 
 ### Build an offline archive
 
-The `reapack-archive` target builds a standalone command for turning a local
-ReaPack repository into an offline archive:
+The `reapack-archive` target builds a standalone command for turning a ReaPack
+repository index into an offline archive:
 
     cmake -B build/archive -DREAPACK_BUILD_PLUGIN=OFF
     cmake --build build/archive
@@ -115,9 +115,12 @@ transfer layer. To also build and run the archive test suite, configure with
 `--repository-name` becomes the repository identity stored in the archive.
 Choose a name that will not collide with a repository the tester already uses.
 
-Relative source URLs in the index are resolved beneath `--source-root`. If the
-index contains absolute source URLs, pass their common base using
-`--source-url-prefix`. Run `reapack-archive --help` for all options.
+Relative source URLs in the index are resolved beneath `--source-root`.
+Absolute URLs matching `--source-url-prefix` are mapped into that same local
+tree. Other HTTP(S) sources are downloaded and checked against any checksum in
+the index; temporary downloads are removed after the archive is built. Pass
+`--offline` to reject sources that cannot be resolved locally. Run
+`reapack-archive --help` for all options.
 
 The archive contains the latest version of each package and the sources
 applicable to the platform on which the command is running (including sources

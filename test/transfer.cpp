@@ -1,4 +1,5 @@
 #include "helper.hpp"
+#include "http_server.hpp"
 
 #include <archive_source.hpp>
 #include <filesystem.hpp>
@@ -7,124 +8,15 @@
 
 #include <fstream>
 #include <sstream>
-#include <stdexcept>
 #include <string>
-#include <thread>
-
-#ifdef _WIN32
-#include <winsock2.h>
-using TestSocket = SOCKET;
-using SocketLength = int;
-static constexpr TestSocket INVALID_TEST_SOCKET = INVALID_SOCKET;
-static constexpr int SHUTDOWN_BOTH = SD_BOTH;
-#else
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
-using TestSocket = int;
-using SocketLength = socklen_t;
-static constexpr TestSocket INVALID_TEST_SOCKET = -1;
-static constexpr int SHUTDOWN_BOTH = SHUT_RDWR;
-#endif
 
 static const char *M = "[transfer]";
-
-static void closeSocket(const TestSocket socket)
-{
-#ifdef _WIN32
-  closesocket(socket);
-#else
-  close(socket);
-#endif
-}
 
 class TransferRuntime {
 public:
   TransferRuntime() { Transfer::globalInit(); }
   ~TransferRuntime() { Transfer::globalCleanup(); }
 };
-
-class HttpServer {
-public:
-  explicit HttpServer(std::string response)
-  {
-    m_listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if(m_listener == INVALID_TEST_SOCKET)
-      throw std::runtime_error("could not create test HTTP socket");
-
-    const int enabled = 1;
-    setsockopt(m_listener, SOL_SOCKET, SO_REUSEADDR,
-      reinterpret_cast<const char *>(&enabled), sizeof(enabled));
-
-    sockaddr_in address{};
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-    if(bind(m_listener, reinterpret_cast<sockaddr *>(&address),
-        sizeof(address)) != 0 || listen(m_listener, 1) != 0) {
-      closeSocket(m_listener);
-      m_listener = INVALID_TEST_SOCKET;
-      throw std::runtime_error("could not listen on test HTTP socket");
-    }
-
-    SocketLength addressSize = sizeof(address);
-    if(getsockname(m_listener, reinterpret_cast<sockaddr *>(&address),
-        &addressSize) != 0) {
-      closeSocket(m_listener);
-      m_listener = INVALID_TEST_SOCKET;
-      throw std::runtime_error("could not inspect test HTTP socket");
-    }
-    m_port = ntohs(address.sin_port);
-
-    m_thread = std::thread([this, response = std::move(response)] {
-      const TestSocket client = accept(m_listener, nullptr, nullptr);
-      if(client == INVALID_TEST_SOCKET)
-        return;
-
-      char request[2048];
-      recv(client, request, sizeof(request), 0);
-
-      size_t sent = 0;
-      while(sent < response.size()) {
-        const int size = send(client, response.data() + sent,
-          static_cast<int>(response.size() - sent), 0);
-        if(size <= 0)
-          break;
-        sent += static_cast<size_t>(size);
-      }
-
-      shutdown(client, SHUTDOWN_BOTH);
-      closeSocket(client);
-    });
-  }
-
-  ~HttpServer()
-  {
-    if(m_listener != INVALID_TEST_SOCKET)
-      closeSocket(m_listener);
-    if(m_thread.joinable())
-      m_thread.join();
-  }
-
-  std::string url(const std::string &path = "/") const
-  {
-    return "http://127.0.0.1:" + std::to_string(m_port) + path;
-  }
-
-private:
-  TestSocket m_listener{INVALID_TEST_SOCKET};
-  unsigned short m_port{};
-  std::thread m_thread;
-};
-
-static std::string response(const std::string &status,
-  const std::string &body, const std::string &headers = {})
-{
-  return "HTTP/1.1 " + status + "\r\n" + headers +
-    "Content-Length: " + std::to_string(body.size()) + "\r\n"
-    "Connection: close\r\n\r\n" + body;
-}
 
 static Transfer::Result perform(const std::string &url,
   std::ostringstream &output, const std::string &checksum = {})
@@ -148,7 +40,7 @@ static std::string readFile(const Path &path)
 
 TEST_CASE("download an HTTP response with its checksum", M) {
   TransferRuntime transferRuntime;
-  HttpServer server(response("200 OK", "payload"));
+  HttpServer server(httpResponse("200 OK", "payload"));
   std::ostringstream output;
 
   const Transfer::Result result = perform(server.url("/payload"), output,
@@ -161,8 +53,8 @@ TEST_CASE("download an HTTP response with its checksum", M) {
 
 TEST_CASE("follow an HTTP redirect", M) {
   TransferRuntime transferRuntime;
-  HttpServer destination(response("200 OK", "redirected"));
-  HttpServer redirect(response("302 Found", "",
+  HttpServer destination(httpResponse("200 OK", "redirected"));
+  HttpServer redirect(httpResponse("302 Found", "",
     "Location: " + destination.url("/destination") + "\r\n"));
   std::ostringstream output;
 
@@ -179,7 +71,7 @@ TEST_CASE("report HTTP and checksum failures", M) {
   Transfer::Result result;
 
   SECTION("HTTP status") {
-    HttpServer server(response("404 Not Found", "missing"));
+    HttpServer server(httpResponse("404 Not Found", "missing"));
     result = perform(server.url("/missing"), output);
 
     REQUIRE(result.failure == Transfer::Failure::Transport);
@@ -187,7 +79,7 @@ TEST_CASE("report HTTP and checksum failures", M) {
   }
 
   SECTION("checksum mismatch") {
-    HttpServer server(response("200 OK", "payload"));
+    HttpServer server(httpResponse("200 OK", "payload"));
     result = perform(server.url("/payload"), output,
       "1220039f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5");
 
@@ -264,7 +156,7 @@ TEST_CASE("download and clean up an external archive source", M) {
 
   {
     Archive::SourceAcquirer acquirer(options);
-    HttpServer server(response("200 OK", "external"));
+    HttpServer server(httpResponse("200 OK", "external"));
     const Archive::SourceLocator locate = acquirer.locator();
     const std::string checksum =
       "12203c4623849a49a53911c4a3e48d8cead8a1858960bccdea7a1b978d73ec2f06d7";
