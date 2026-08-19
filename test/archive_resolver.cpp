@@ -2,10 +2,15 @@
 
 #include <archive_builder.hpp>
 #include <archive_io.hpp>
+#include <archive_manifest.hpp>
 #include <archive_resolver.hpp>
 #include <errors.hpp>
 #include <filesystem.hpp>
+#include <index.hpp>
+#include <package.hpp>
 #include <path.hpp>
+#include <source.hpp>
+#include <version.hpp>
 
 #include <sstream>
 #include <vector>
@@ -28,7 +33,7 @@ static std::string extract(const ArchiveReaderPtr &reader, const Path &path)
   return stream.str();
 }
 
-TEST_CASE("resolve sources for the current platform", M) {
+TEST_CASE("build and inspect sources for the current platform", M) {
   const Path root(REAPACK_TEST_BINARY_DIR);
   const Path inputDir("archive-resolver-input");
   const Path index = inputDir + "index.xml";
@@ -106,9 +111,43 @@ TEST_CASE("resolve sources for the current platform", M) {
   Archive::build(plan, output);
 
   const auto reader = std::make_shared<ArchiveReader>(output);
-  REQUIRE(extract(reader, Path("toc")) ==
-    "REPO Preview|https://example.invalid/index.xml|0|0\n"
-    "PACK \"Tools\" \"Preview.lua\" \"1.0\" 0\n");
+  std::istringstream manifest(extract(reader, Path("toc")));
+  std::string record;
+  REQUIRE(std::getline(manifest, record));
+  REQUIRE(record.compare(0, 5, "REPO ") == 0);
+
+  const Remote repository = Archive::parseRepositoryRecord(record.substr(5));
+  REQUIRE(repository.name() == plan.repository.name());
+
+  const std::string cachedIndex = extract(reader,
+    Index::pathFor(repository.name()));
+  const IndexPtr importedIndex = Index::load(repository.name(),
+    cachedIndex.c_str());
+
+  size_t packageCount = 0;
+  size_t payloadCount = 0;
+  while(std::getline(manifest, record)) {
+    REQUIRE(record.compare(0, 5, "PACK ") == 0);
+
+    const Archive::PackageRecord packageRecord =
+      Archive::parsePackageRecord(record.substr(5));
+    const Package *package = importedIndex->find(packageRecord.category,
+      packageRecord.package);
+    REQUIRE(package);
+
+    const Version *version = package->findVersion(packageRecord.version);
+    REQUIRE(version);
+
+    for(const Source *source : version->sources()) {
+      extract(reader, source->targetPath());
+      ++payloadCount;
+    }
+
+    ++packageCount;
+  }
+
+  REQUIRE(packageCount == plan.packages.size());
+  REQUIRE(payloadCount == plan.payloads.size());
   REQUIRE(extract(reader, Path("Scripts/Preview/Tools/generic.lua")) == "generic");
   REQUIRE(extract(reader, Path("Scripts/Preview/Tools/current.lua")) == "current");
 
