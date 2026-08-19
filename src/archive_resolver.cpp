@@ -139,8 +139,11 @@ Archive::BuildPlan Archive::resolve(const RepositoryInput &input)
 
   std::ostringstream indexContents;
   indexContents << indexStream.rdbuf();
+
+  Index::LoadOptions loadOptions;
+  loadOptions.rejectUnsupportedPackageTypes = true;
   const IndexPtr index = Index::load(input.repository.name(),
-    indexContents.str().c_str());
+    indexContents.str().c_str(), loadOptions);
 
   BuildPlan plan;
   plan.repository = input.repository;

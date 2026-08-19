@@ -33,6 +33,12 @@ Path Index::pathFor(const std::string &name)
 
 IndexPtr Index::load(const std::string &name, const char *data)
 {
+  return load(name, data, {});
+}
+
+IndexPtr Index::load(const std::string &name, const char *data,
+  const LoadOptions &options)
+{
   std::unique_ptr<std::istream> stream;
 
   if(data)
@@ -67,7 +73,7 @@ IndexPtr Index::load(const std::string &name, const char *data)
 
   switch(version) {
   case 1:
-    loadV1(root, ri);
+    loadV1(root, ri, options);
     break;
   default:
     throw reapack_error("index version is unsupported");

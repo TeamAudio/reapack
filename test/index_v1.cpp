@@ -49,18 +49,33 @@ TEST_CASE("null package name", M) {
 TEST_CASE("null package type", M) {
   UseRootPath root(RIPATH);
 
-  try {
+  SECTION("compatible loading tolerates it") {
     IndexPtr ri = Index::load("missing_type");
+    REQUIRE(ri->packages().empty());
   }
-  catch(const reapack_error &) {
-    // no segfault -> test passes!
+
+  SECTION("strict loading rejects it") {
+    Index::LoadOptions options;
+    options.rejectUnsupportedPackageTypes = true;
+    REQUIRE_THROWS_WITH(Index::load("missing_type", nullptr, options),
+      "missing package type");
   }
 }
 
 TEST_CASE("unsupported package type", M) {
   UseRootPath root(RIPATH);
 
-  IndexPtr ri = Index::load("unsupported_type");
+  SECTION("compatible loading ignores it") {
+    IndexPtr ri = Index::load("unsupported_type");
+    REQUIRE(ri->packages().empty());
+  }
+
+  SECTION("strict loading rejects it") {
+    Index::LoadOptions options;
+    options.rejectUnsupportedPackageTypes = true;
+    REQUIRE_THROWS_WITH(Index::load("unsupported_type", nullptr, options),
+      "unsupported package type 'hello_world'");
+  }
 }
 
 TEST_CASE("read version author", M) {

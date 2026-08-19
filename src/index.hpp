@@ -38,8 +38,14 @@ typedef std::shared_ptr<const Index> IndexPtr;
 
 class Index : public std::enable_shared_from_this<const Index> {
 public:
+  struct LoadOptions {
+    bool rejectUnsupportedPackageTypes{};
+  };
+
   static Path pathFor(const std::string &name);
   static IndexPtr load(const std::string &name, const char *data = nullptr);
+  static IndexPtr load(const std::string &name, const char *data,
+    const LoadOptions &);
 
   Index(const std::string &name);
   ~Index();
@@ -59,7 +65,7 @@ public:
   const std::vector<const Package *> &packages() const { return m_packages; }
 
 private:
-  static void loadV1(XmlNode, Index *);
+  static void loadV1(XmlNode, Index *, const LoadOptions &);
 
   std::string m_name;
   Metadata m_metadata;

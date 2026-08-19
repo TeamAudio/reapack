@@ -23,12 +23,12 @@
 #include <sstream>
 
 static void LoadMetadataV1(XmlNode, Metadata *);
-static void LoadCategoryV1(XmlNode, Index *);
-static void LoadPackageV1(XmlNode, Category *);
+static void LoadCategoryV1(XmlNode, Index *, const Index::LoadOptions &);
+static void LoadPackageV1(XmlNode, Category *, const Index::LoadOptions &);
 static void LoadVersionV1(XmlNode, Package *);
 static void LoadSourceV1(XmlNode, Version *, bool hasArm64Ec);
 
-void Index::loadV1(XmlNode root, Index *ri)
+void Index::loadV1(XmlNode root, Index *ri, const LoadOptions &options)
 {
   if(ri->name().empty()) {
     if(const XmlString &name = root.attribute("name"))
@@ -37,7 +37,7 @@ void Index::loadV1(XmlNode root, Index *ri)
 
   for(XmlNode node = root.firstChild("category");
       node; node = node.nextSibling("category"))
-    LoadCategoryV1(node, ri);
+    LoadCategoryV1(node, ri, options);
 
   if(XmlNode node = root.firstChild("metadata"))
     LoadMetadataV1(node, ri->metadata());
@@ -66,7 +66,8 @@ void LoadMetadataV1(XmlNode meta, Metadata *md)
   }
 }
 
-void LoadCategoryV1(XmlNode catNode, Index *ri)
+void LoadCategoryV1(XmlNode catNode, Index *ri,
+  const Index::LoadOptions &options)
 {
   const XmlString &name = catNode.attribute("name");
 
@@ -75,18 +76,26 @@ void LoadCategoryV1(XmlNode catNode, Index *ri)
 
   for(XmlNode packNode = catNode.firstChild("reapack");
       packNode; packNode = packNode.nextSibling("reapack"))
-    LoadPackageV1(packNode, cat);
+    LoadPackageV1(packNode, cat, options);
 
   if(ri->addCategory(cat))
     ptr.release();
 }
 
-void LoadPackageV1(XmlNode packNode, Category *cat)
+void LoadPackageV1(XmlNode packNode, Category *cat,
+  const Index::LoadOptions &options)
 {
   const XmlString &type = packNode.attribute("type"),
                   &name = packNode.attribute("name");
 
-  Package *pack = new Package(Package::getType(type.value_or("")), name.value_or(""), cat);
+  const Package::Type packageType = Package::getType(type.value_or(""));
+  if(options.rejectUnsupportedPackageTypes && packageType == Package::UnknownType) {
+    if(type)
+      throw reapack_error("unsupported package type '" + std::string(*type) + "'");
+    throw reapack_error("missing package type");
+  }
+
+  Package *pack = new Package(packageType, name.value_or(""), cat);
   std::unique_ptr<Package> ptr(pack);
 
   if(const XmlString &desc = packNode.attribute("desc"))
