@@ -26,29 +26,6 @@
 
 #include <vector>
 
-#ifdef _WIN32
-std::wstring Win32::widen(const char *input, const UINT codepage)
-{
-  const int size = MultiByteToWideChar(codepage, 0, input, -1, nullptr, 0) - 1;
-
-  std::wstring output(size, 0);
-  MultiByteToWideChar(codepage, 0, input, -1, &output[0], size);
-
-  return output;
-}
-
-std::string Win32::narrow(const wchar_t *input)
-{
-  const int size = WideCharToMultiByte(CP_UTF8, 0,
-    input, -1, nullptr, 0, nullptr, nullptr) - 1;
-
-  std::string output(size, 0);
-  WideCharToMultiByte(CP_UTF8, 0, input, -1, &output[0], size, nullptr, nullptr);
-
-  return output;
-}
-#endif
-
 int Win32::messageBox(const HWND handle, const char *text,
   const char *title, const unsigned int buttons)
 {

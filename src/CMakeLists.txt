@@ -56,6 +56,30 @@ file(STRINGS ../ABOUT.md REAPACK_COPYRIGHT REGEX "^Copyright")
 
 configure_file(buildinfo.hpp.in buildinfo.hpp)
 
+add_library(reapack_archive STATIC
+  archive_builder.cpp
+  archive_io.cpp
+  filesystem.cpp
+  path.cpp
+  remote.cpp
+  string.cpp
+  unicode.cpp
+)
+
+target_compile_features(reapack_archive PUBLIC cxx_std_17)
+target_include_directories(reapack_archive PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(reapack_archive PUBLIC Boost::headers MiniZip::MiniZip)
+
+if(WIN32)
+  target_compile_options(reapack_archive PRIVATE /W3 /WX /wd4996)
+  target_compile_definitions(reapack_archive PUBLIC NOMINMAX UNICODE)
+else()
+  target_compile_options(reapack_archive PRIVATE
+    -Wall -Wextra -Werror
+    -Wno-unused-parameter -Wno-missing-field-initializers
+  )
+endif()
+
 add_library(reapack OBJECT
   about.cpp
   action.cpp
@@ -63,9 +87,7 @@ add_library(reapack OBJECT
   api_misc.cpp
   api_package.cpp
   api_repo.cpp
-  archive_builder.cpp
   archive.cpp
-  archive_io.cpp
   archive_tasks.cpp
   browser.cpp
   browser_entry.cpp
@@ -76,7 +98,6 @@ add_library(reapack OBJECT
   download.cpp
   event.cpp
   filedialog.cpp
-  filesystem.cpp
   filter.cpp
   hash.cpp
   iconlist.cpp
@@ -91,19 +112,16 @@ add_library(reapack OBJECT
   metadata.cpp
   obsquery.cpp
   package.cpp
-  path.cpp
   platform.cpp
   progress.cpp
   reapack.cpp
   receipt.cpp
   registry.cpp
-  remote.cpp
   report.cpp
   resource.rc
   richedit$<IF:$<BOOL:${APPLE}>,.mm,$<IF:$<BOOL:${WIN32}>,-win32,-generic>.cpp>
   serializer.cpp
   source.cpp
-  string.cpp
   synchronize.cpp
   tabbar.cpp
   task.cpp
@@ -134,6 +152,7 @@ else()
 endif()
 
 target_link_libraries(reapack
+  reapack_archive
   ${CMAKE_DL_LIBS} Boost::headers CURL::libcurl MiniZip::MiniZip
   SQLite::SQLite3 Threads::Threads WDL::WDL
   $<IF:$<BOOL:${LIBXML2_FOUND}>,LibXml2::LibXml2,tinyxml2::tinyxml2>

@@ -19,7 +19,7 @@
 
 #include "errors.hpp"
 #include "filesystem.hpp"
-#include "win32.hpp"
+#include "unicode.hpp"
 
 #include <fstream>
 
@@ -44,7 +44,7 @@ static void *wide_fopen(voidpf, const void *filename, int mode)
   FILE *file = nullptr;
 
   if(filename && fopen_mode) {
-    const auto &&wideFilename = Win32::widen(static_cast<const char *>(filename));
+    const auto &&wideFilename = Unicode::widen(static_cast<const char *>(filename));
     _wfopen_s(&file, wideFilename.c_str(), fopen_mode);
   }
 

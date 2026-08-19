@@ -18,7 +18,7 @@
 #include "filesystem.hpp"
 
 #include "path.hpp"
-#include "win32.hpp"
+#include "unicode.hpp"
 
 #include <cerrno>
 #include <cstdio>
@@ -32,7 +32,7 @@
 
 static auto nativePath(const Path &path)
 {
-  return Win32::widen(path.prependRoot().join());
+  return Unicode::widen(path.prependRoot().join());
 }
 
 static bool stat(const Path &path, struct stat *out)
@@ -183,7 +183,7 @@ bool FS::mkdir(const Path &path)
   for(const std::string &dir : path) {
     fullPath.append(dir);
 
-    const auto &joined = Win32::widen(fullPath.join());
+    const auto &joined = Unicode::widen(fullPath.join());
 
 #ifdef _WIN32
     if(!CreateDirectory(joined.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS)

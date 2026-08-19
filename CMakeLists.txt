@@ -114,11 +114,12 @@ target_link_libraries(reaper_reapack reapack)
 
 add_subdirectory(test)
 add_custom_target(test
+  COMMAND $<TARGET_FILE:archive_tests>
   COMMAND $<TARGET_FILE:tests>
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   USES_TERMINAL
 )
-add_dependencies(test tests)
+add_dependencies(test archive_tests tests)
 
 set(REAPER_USER_PLUGINS "UserPlugins")
 install(TARGETS reaper_reapack
