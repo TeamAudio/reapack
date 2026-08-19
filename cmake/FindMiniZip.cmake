@@ -2,11 +2,10 @@ if(MiniZip_FOUND)
   return()
 endif()
 
-find_package(WDL REQUIRED)
 find_path(MiniZip_INCLUDE_DIR
   NAMES unzip.h
-  PATHS ${WDL_DIR}
-  PATH_SUFFIXES zlib
+  PATHS ${CMAKE_SOURCE_DIR}/vendor/WDL
+  PATH_SUFFIXES WDL/zlib
   NO_DEFAULT_PATH
 )
 mark_as_advanced(MiniZip_INCLUDE_DIR)
