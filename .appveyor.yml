@@ -14,6 +14,18 @@ build_script:
   - cmake --build build
 
 test_script:
+  - sh: |-
+      if [ "$appveyor_build_worker_image" = "Ubuntu1804" ] && [ "$ARCH" = x86_64 ]; then
+        cmake --no-warn-unused-cli -B build-archive -DCMAKE_BUILD_TYPE=Release \
+          -DREAPACK_BUILD_PLUGIN=OFF \
+          -DCMAKE_DISABLE_FIND_PACKAGE_CURL=ON \
+          -DCMAKE_DISABLE_FIND_PACKAGE_Threads=ON \
+          -DCMAKE_DISABLE_FIND_PACKAGE_WDL=ON \
+          -DCMAKE_DISABLE_FIND_PACKAGE_SWELL=ON \
+          -DCMAKE_DISABLE_FIND_PACKAGE_SQLite3=ON \
+          -DCMAKE_DISABLE_FIND_PACKAGE_Catch2=ON
+        cmake --build build-archive --target reapack-archive
+      fi
   - sh: '[[ "$ARCH" = arm64 ]] || cmake --build build --target test'
   - cmd: 'if NOT "%ARCH%" == "arm64ec" cmake --build build --target test'
 
