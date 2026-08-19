@@ -30,6 +30,7 @@
 #include "progress.hpp"
 #include "report.hpp"
 #include "richedit.hpp"
+#include "transfer.hpp"
 #include "transaction.hpp"
 #include "win32.hpp"
 
@@ -82,7 +83,7 @@ ReaPack::ReaPack(REAPER_PLUGIN_HINSTANCE instance, HWND mainWindow)
   assert(!s_instance);
   s_instance = this;
 
-  DownloadContext::GlobalInit();
+  Transfer::globalInit();
   RichEdit::Init();
 
   createDirectories();
@@ -100,7 +101,7 @@ ReaPack::ReaPack(REAPER_PLUGIN_HINSTANCE instance, HWND mainWindow)
 
 ReaPack::~ReaPack()
 {
-  DownloadContext::GlobalCleanup();
+  Transfer::globalCleanup();
 
   s_instance = nullptr;
 }

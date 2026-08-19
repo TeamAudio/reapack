@@ -22,26 +22,8 @@
 #include "path.hpp"
 #include "thread.hpp"
 
-#include <curl/curl.h>
 #include <fstream>
-#include <memory>
 #include <sstream>
-
-class Hash;
-
-class DownloadContext {
-public:
-  static void GlobalInit();
-  static void GlobalCleanup();
-
-  DownloadContext();
-  ~DownloadContext();
-
-  operator CURL*() { return m_curl; }
-
-private:
-  CURL *m_curl;
-};
 
 class Download : public ThreadTask {
 public:
@@ -68,17 +50,7 @@ protected:
   virtual void closeStream() {}
 
 private:
-  struct WriteContext {
-    std::ostream *stream;
-    std::unique_ptr<Hash> hash;
-
-    void write(const char *data, size_t len);
-    bool checkChecksum(const std::string &expected) const;
-  };
-
   bool has(Flag f) const { return (m_flags & f) != 0; }
-  static size_t WriteData(char *, size_t, size_t, void *);
-  static int UpdateProgress(void *, double, double, double, double);
 
   std::string m_url;
   std::string m_expectedChecksum;

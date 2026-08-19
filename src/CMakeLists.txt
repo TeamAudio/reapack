@@ -155,6 +155,7 @@ add_library(reapack OBJECT
   tabbar.cpp
   task.cpp
   thread.cpp
+  transfer.cpp
   transaction.cpp
   win32.cpp
 )

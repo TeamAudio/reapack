@@ -19,93 +19,11 @@
 
 #include "buildinfo.hpp"
 #include "filesystem.hpp"
-#include "hash.hpp"
 #include "reapack.hpp"
+#include "transfer.hpp"
 #include "win32.hpp"
 
-#include <cassert>
-
 #include <reaper_plugin_functions.h>
-
-static const int DOWNLOAD_TIMEOUT = 15;
-// to set the amount of concurrent downloads, change the size of
-// the m_pool member in ThreadPool (thread.hpp)
-
-static CURLSH *g_curlShare = nullptr;
-static std::mutex g_curlMutex;
-
-static void LockCurlMutex(CURL *, curl_lock_data, curl_lock_access, void *)
-{
-  g_curlMutex.lock();
-}
-
-static void UnlockCurlMutex(CURL *, curl_lock_data, curl_lock_access, void *)
-{
-  g_curlMutex.unlock();
-}
-
-void DownloadContext::GlobalInit()
-{
-  curl_global_init(CURL_GLOBAL_DEFAULT);
-
-  g_curlShare = curl_share_init();
-  assert(g_curlShare);
-
-  curl_share_setopt(g_curlShare, CURLSHOPT_LOCKFUNC, LockCurlMutex);
-  curl_share_setopt(g_curlShare, CURLSHOPT_UNLOCKFUNC, UnlockCurlMutex);
-
-  curl_share_setopt(g_curlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
-  curl_share_setopt(g_curlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
-}
-
-void DownloadContext::GlobalCleanup()
-{
-  curl_share_cleanup(g_curlShare);
-  curl_global_cleanup();
-}
-
-DownloadContext::DownloadContext()
-{
-  m_curl = curl_easy_init();
-
-  char userAgent[64];
-  snprintf(userAgent, sizeof(userAgent), "ReaPack/%s REAPER/%s",
-    REAPACK_VERSION, GetAppVersion());
-
-  curl_easy_setopt(m_curl, CURLOPT_USERAGENT, userAgent);
-  curl_easy_setopt(m_curl, CURLOPT_LOW_SPEED_LIMIT, 1);
-  curl_easy_setopt(m_curl, CURLOPT_LOW_SPEED_TIME, DOWNLOAD_TIMEOUT);
-  curl_easy_setopt(m_curl, CURLOPT_CONNECTTIMEOUT, DOWNLOAD_TIMEOUT);
-  curl_easy_setopt(m_curl, CURLOPT_FOLLOWLOCATION, true);
-  curl_easy_setopt(m_curl, CURLOPT_MAXREDIRS, 5);
-  curl_easy_setopt(m_curl, CURLOPT_ACCEPT_ENCODING, "");
-  curl_easy_setopt(m_curl, CURLOPT_FAILONERROR, true);
-  curl_easy_setopt(m_curl, CURLOPT_SHARE, g_curlShare);
-  curl_easy_setopt(m_curl, CURLOPT_NOPROGRESS, false);
-#ifdef CURLSSLOPT_REVOKE_BEST_EFFORT
-  curl_easy_setopt(m_curl, CURLOPT_SSL_OPTIONS, CURLSSLOPT_REVOKE_BEST_EFFORT);
-#endif
-}
-
-DownloadContext::~DownloadContext()
-{
-  curl_easy_cleanup(m_curl);
-}
-
-size_t Download::WriteData(char *data, size_t rawsize, size_t nmemb, void *ptr)
-{
-  const size_t size = rawsize * nmemb;
-
-  static_cast<WriteContext *>(ptr)->write(data, size);
-
-  return size;
-}
-
-int Download::UpdateProgress(void *ptr, const double, const double,
-    const double, const double)
-{
-  return static_cast<Download *>(ptr)->aborted();
-}
 
 Download::Download(const std::string &url, const NetworkOpts &opts, const int flags)
   : m_url(url), m_opts(opts), m_flags(flags)
@@ -133,93 +51,50 @@ static bool isGitHub(const std::string &url)
 
 bool Download::run(const bool proxy)
 {
-  WriteContext write;
-
-  Hash::Algorithm algo;
-  if(!m_expectedChecksum.empty()) {
-    if(Hash::getAlgorithm(m_expectedChecksum, &algo))
-      write.hash = std::make_unique<Hash>(algo);
-    else {
-      const std::string &error = String::format(
-        "Unsupported checksum: %s", m_expectedChecksum.c_str());
-      setError({error, m_url});
-      return false;
-    }
-  }
-
-  if(!(write.stream = openStream()))
+  std::ostream *stream = openStream();
+  if(!stream)
     return false;
 
-  thread_local DownloadContext ctx;
+  Transfer::Request request;
+  request.url = m_url;
+  request.proxy = m_opts.proxy;
+  request.verifyPeer = m_opts.verifyPeer;
+  request.expectedChecksum = m_expectedChecksum;
+  request.aborted = [this] { return aborted(); };
 
-  std::string url = m_url;
-  if(proxy)
-    url.insert(0, "https://raw.reapack.com/usercontent?");
+  char userAgent[64];
+  snprintf(userAgent, sizeof(userAgent), "ReaPack/%s REAPER/%s",
+    REAPACK_VERSION, GetAppVersion());
+  request.userAgent = userAgent;
 
-  curl_easy_setopt(ctx, CURLOPT_URL, url.c_str());
-  curl_easy_setopt(ctx, CURLOPT_PROXY, m_opts.proxy.c_str());
-  curl_easy_setopt(ctx, CURLOPT_SSL_VERIFYPEER, m_opts.verifyPeer);
-#ifdef __APPLE__
-  curl_easy_setopt(ctx, CURLOPT_CAINFO, nullptr);
-#endif
-
-  curl_easy_setopt(ctx, CURLOPT_PROGRESSFUNCTION, UpdateProgress);
-  curl_easy_setopt(ctx, CURLOPT_PROGRESSDATA, this);
-
-  curl_easy_setopt(ctx, CURLOPT_WRITEFUNCTION, WriteData);
-  curl_easy_setopt(ctx, CURLOPT_WRITEDATA, &write);
-
-  curl_slist *headers = nullptr;
   if(has(Download::NoCacheFlag))
-    headers = curl_slist_append(headers, "Cache-Control: no-cache");
-  if(proxy)
-    headers = curl_slist_append(headers, "X-ReaPack-Proxy: 1");
-  curl_easy_setopt(ctx, CURLOPT_HTTPHEADER, headers);
+    request.headers.push_back("Cache-Control: no-cache");
+  if(proxy) {
+    request.url.insert(0, "https://raw.reapack.com/usercontent?");
+    request.headers.push_back("X-ReaPack-Proxy: 1");
+  }
 
-  std::string errbuf = "No error message";
-  errbuf.resize(CURL_ERROR_SIZE - 1, '\0');
-  curl_easy_setopt(ctx, CURLOPT_ERRORBUFFER, errbuf.data());
-
-  const CURLcode res = curl_easy_perform(ctx);
-  curl_slist_free_all(headers);
+  Transfer::Result result = Transfer::perform(request, *stream);
   closeStream();
 
-  if(res != CURLE_OK) {
-    if(!proxy && isGitHub(m_url)) {
-      long status = 0;
-      curl_easy_getinfo(ctx, CURLINFO_RESPONSE_CODE, &status);
-      if(status == 429 && *(onRequestProxyAsync().get()))
-        return run(true);
-    }
+  if(!result) {
+    if(result.failure == Transfer::Failure::Transport
+        && !proxy && isGitHub(m_url) && result.status == 429
+        && *(onRequestProxyAsync().get()))
+      return run(true);
 
 #ifdef _WIN32
-    errbuf = Win32::ansi2utf8(errbuf);
+    if(result.failure == Transfer::Failure::Transport)
+      result.error = Win32::ansi2utf8(result.error);
 #endif
 
-    const std::string &err = String::format(
-      "%s (%d): %s%s", curl_easy_strerror(res), res, errbuf.c_str(),
-      proxy ? " [proxied]" : "");
-    setError({err, m_url});
-    return false;
-  }
-  else if(write.hash && write.hash->digest() != m_expectedChecksum) {
-    const std::string &err = String::format(
-      "Checksum mismatch.\nExpected: %s\nActual: %s",
-      m_expectedChecksum.c_str(), write.hash->digest().c_str()
-    );
-    setError({err, m_url});
+    if(proxy && result.failure == Transfer::Failure::Transport)
+      result.error += " [proxied]";
+    setError({result.error, m_url});
     return false;
   }
 
   return true;
-}
-
-void Download::WriteContext::write(const char *data, const size_t len)
-{
-  stream->write(data, len);
-
-  if(hash)
-    hash->addData(data, len);
 }
 
 MemoryDownload::MemoryDownload(const std::string &url, const NetworkOpts &opts, int flags)
