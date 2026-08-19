@@ -19,6 +19,7 @@
 #ifndef REAPACK_ARCHIVE_BUILDER_HPP
 #define REAPACK_ARCHIVE_BUILDER_HPP
 
+#include "archive_manifest.hpp"
 #include "path.hpp"
 #include "remote.hpp"
 
@@ -26,13 +27,6 @@
 #include <vector>
 
 namespace Archive {
-  struct PackageSelection {
-    std::string category;
-    std::string package;
-    std::string version;
-    int flags{};
-  };
-
   struct Payload {
     Path source;
     std::string target;
@@ -42,7 +36,7 @@ namespace Archive {
   struct BuildPlan {
     Remote repository;
     Path index;
-    std::vector<PackageSelection> packages;
+    std::vector<PackageRecord> packages;
     std::vector<Payload> payloads;
   };
 

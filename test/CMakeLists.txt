@@ -5,6 +5,7 @@ add_executable(archive_tests EXCLUDE_FROM_ALL
   archive_builder.cpp
   archive_cli.cpp
   archive_io.cpp
+  archive_manifest.cpp
   archive_resolver.cpp
   helper.cpp
   helper.hpp

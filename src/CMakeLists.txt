@@ -16,6 +16,7 @@ endif()
 add_library(reapack_archive STATIC
   archive_builder.cpp
   archive_io.cpp
+  archive_manifest.cpp
   archive_resolver.cpp
   filesystem.cpp
   hash.cpp

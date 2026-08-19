@@ -19,6 +19,7 @@
 #include "archive_builder.hpp"
 
 #include "archive_io.hpp"
+#include "archive_manifest.hpp"
 #include "errors.hpp"
 #include "filesystem.hpp"
 #include "hash.hpp"
@@ -28,7 +29,6 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
-#include <iomanip>
 #include <set>
 #include <sstream>
 
@@ -129,7 +129,7 @@ void Archive::build(const BuildPlan &plan, const Path &output)
     targetKey(indexTarget.join(false)),
   };
 
-  for(const PackageSelection &package : plan.packages) {
+  for(const PackageRecord &package : plan.packages) {
     validateField("category", package.category);
     validateField("name", package.package);
     validateField("version", package.version);
@@ -146,15 +146,10 @@ void Archive::build(const BuildPlan &plan, const Path &output)
   }
 
   std::ostringstream toc;
-  toc << "REPO " << plan.repository.toString() << '\n';
+  writeRepositoryRecord(toc, plan.repository);
 
-  for(const PackageSelection &package : plan.packages) {
-    toc << "PACK "
-      << std::quoted(package.category) << ' '
-      << std::quoted(package.package) << ' '
-      << std::quoted(package.version) << ' '
-      << package.flags << '\n';
-  }
+  for(const PackageRecord &package : plan.packages)
+    writePackageRecord(toc, package);
 
   const TempPath temporary(output);
   FS::remove(temporary.temp());

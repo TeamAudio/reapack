@@ -18,6 +18,7 @@
 #include "task.hpp"
 
 #include "archive.hpp"
+#include "archive_manifest.hpp"
 #include "config.hpp"
 #include "filesystem.hpp"
 #include "index.hpp"
@@ -27,7 +28,6 @@
 #include "transaction.hpp"
 
 #include <fstream>
-#include <iomanip>
 #include <sstream>
 
 static const Path ARCHIVE_TOC("toc");
@@ -113,17 +113,18 @@ bool ExportTask::start()
 
     for(const Registry::Entry &entry : tx()->registry()->getEntries(remote.name())) {
       if(!addedRemote) {
-        toc << "REPO " << remote.toString() << '\n';
+        Archive::writeRepositoryRecord(toc, remote);
         jobs.push_back(new FileCompressor(Index::pathFor(remote.name()), writer));
         addedRemote = true;
       }
 
-      toc << "PACK "
-        << quoted(entry.category) << '\x20'
-        << quoted(entry.package) << '\x20'
-        << quoted(entry.version.toString()) << '\x20'
-        << entry.flags << '\n'
-      ;
+      const Archive::PackageRecord package{
+        entry.category,
+        entry.package,
+        entry.version.toString(),
+        entry.flags,
+      };
+      Archive::writePackageRecord(toc, package);
 
       for(const Registry::File &file : tx()->registry()->getFiles(entry))
         jobs.push_back(new FileCompressor(file.path, writer));
