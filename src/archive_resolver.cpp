@@ -144,6 +144,7 @@ Archive::BuildPlan Archive::resolve(const RepositoryInput &input)
   loadOptions.rejectUnsupportedPackageTypes = true;
   loadOptions.rejectUnsupportedPlatforms = true;
   loadOptions.rejectUnsupportedSourceTypes = true;
+  loadOptions.rejectDuplicateSourceTargets = true;
   const IndexPtr index = Index::load(input.repository.name(),
     indexContents.str().c_str(), loadOptions);
 

@@ -63,6 +63,9 @@ TEST_CASE("resolve sources for the current platform", M) {
               << urlPrefix << "current.lua</source>"
             "<source platform=\"" << foreignPlatform <<
               "\" file=\"foreign.lua\">" << urlPrefix << "foreign.lua</source>"
+            "<source platform=\"" << foreignPlatform <<
+              "\" file=\"generic.lua\">" << urlPrefix <<
+              "foreign-duplicate.lua</source>"
           "</version>"
         "</reapack>"
       "</category>"
@@ -275,6 +278,37 @@ TEST_CASE("reject unsupported source type overrides", M) {
 
   REQUIRE_THROWS_WITH(Archive::resolve(input),
     "unsupported source type 'future'");
+
+  REQUIRE(FS::remove(index));
+  REQUIRE(FS::remove(inputDir));
+}
+
+TEST_CASE("reject duplicate source targets", M) {
+  const Path root(REAPACK_TEST_BINARY_DIR);
+  const Path inputDir("archive-duplicate-source-target");
+  const Path index = inputDir + "index.xml";
+  const std::string xml =
+    "<index version=\"1\">"
+      "<category name=\"Tools\">"
+        "<reapack name=\"Preview\" type=\"data\">"
+          "<version name=\"1.0\">"
+            "<source file=\"shared.dat\">first.dat</source>"
+            "<source file=\"shared.dat\">second.dat</source>"
+          "</version>"
+        "</reapack>"
+      "</category>"
+    "</index>";
+
+  UseRootPath useRoot(root);
+  REQUIRE(FS::write(index, xml));
+
+  Archive::RepositoryInput input;
+  input.repository = Remote("Preview", "https://example.invalid/index.xml");
+  input.index = index;
+  input.locateSource = [](const std::string &) { return Path(); };
+
+  REQUIRE_THROWS_WITH(Archive::resolve(input),
+    "duplicate source target 'Data/shared.dat'");
 
   REQUIRE(FS::remove(index));
   REQUIRE(FS::remove(inputDir));

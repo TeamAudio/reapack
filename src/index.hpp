@@ -42,6 +42,7 @@ public:
     bool rejectUnsupportedPackageTypes{};
     bool rejectUnsupportedPlatforms{};
     bool rejectUnsupportedSourceTypes{};
+    bool rejectDuplicateSourceTargets{};
   };
 
   static Path pathFor(const std::string &name);

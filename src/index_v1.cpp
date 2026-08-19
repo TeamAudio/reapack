@@ -198,6 +198,14 @@ void LoadSourceV1(XmlNode node, Version *ver, const bool hasArm64Ec,
     sections |= Source::getSection(section.c_str());
   src->setSections(sections);
 
+  if(options.rejectDuplicateSourceTargets && sourcePlatform.test()) {
+    const Path target = src->targetPath();
+    if(ver->files().count(target)) {
+      throw reapack_error("duplicate source target '" +
+        target.join(false) + "'");
+    }
+  }
+
   if(ver->addSource(src))
     ptr.release();
 }

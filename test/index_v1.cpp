@@ -351,6 +351,34 @@ TEST_CASE("unsupported source type override", M) {
   }
 }
 
+TEST_CASE("duplicate source target", M) {
+  const char *data =
+    "<index version=\"1\">"
+      "<category name=\"test\">"
+        "<reapack name=\"a\" type=\"data\">"
+          "<version name=\"1.0\">"
+            "<source file=\"shared.dat\">first.dat</source>"
+            "<source file=\"shared.dat\">second.dat</source>"
+          "</version>"
+        "</reapack>"
+      "</category>"
+    "</index>";
+
+  SECTION("compatible loading keeps the first source") {
+    IndexPtr ri = Index::load({}, data);
+    REQUIRE(ri->packages().size() == 1);
+    REQUIRE(ri->packages()[0]->version(0)->sources().size() == 1);
+    REQUIRE(ri->packages()[0]->version(0)->source(0)->url() == "first.dat");
+  }
+
+  SECTION("strict loading rejects it") {
+    Index::LoadOptions options;
+    options.rejectDuplicateSourceTargets = true;
+    REQUIRE_THROWS_WITH(Index::load({}, data, options),
+      "duplicate source target 'Data/shared.dat'");
+  }
+}
+
 TEST_CASE("read package description", M) {
   UseRootPath root(RIPATH);
 
