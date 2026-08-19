@@ -1,0 +1,77 @@
+name: Archive CLI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - archive-builder
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archive-cli-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+          - name: macOS
+            os: macos-15
+          - name: Windows
+            os: windows-2025
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes \
+            catch2 \
+            libboost-dev \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            zlib1g-dev
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install boost catch2
+
+      - name: Configure Windows dependencies
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not $env:VCPKG_INSTALLATION_ROOT) {
+            throw 'The hosted runner did not provide vcpkg.'
+          }
+          "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+          "VCPKG_DEFAULT_TRIPLET=x64-windows-static" >> $env:GITHUB_ENV
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build/archive-ci
+          -DCMAKE_BUILD_TYPE=Release
+          -DREAPACK_BUILD_PLUGIN=OFF
+          -DREAPACK_BUILD_TESTS=ON
+
+      - name: Build and test
+        run: >-
+          cmake --build build/archive-ci
+          --config Release
+          --target test
+          --parallel
