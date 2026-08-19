@@ -99,12 +99,17 @@ The following targets are available:
 The `reapack-archive` target builds a standalone command for turning a local
 ReaPack repository into an offline archive:
 
-    cmake --build build --target reapack-archive
-    ./build/src/reapack-archive \
-      --index build/index.xml \
+    cmake -B build/archive -DREAPACK_BUILD_PLUGIN=OFF
+    cmake --build build/archive
+    ./build/archive/src/reapack-archive \
+      --index index.xml \
       --source-root . \
       --repository-name "Project Preview" \
       --output build/project-preview.ReaPackArchive
+
+This configuration skips dependencies used only by the REAPER extension. To
+also build and run the archive test suite, configure with
+`-DREAPACK_BUILD_TESTS=ON` and build the `test` target.
 
 Relative source URLs in the index are resolved beneath `--source-root`. If the
 index contains absolute source URLs, pass their common base using
