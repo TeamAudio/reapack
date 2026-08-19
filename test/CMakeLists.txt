@@ -4,6 +4,7 @@ mark_as_advanced(Catch2_DIR)
 add_executable(tests EXCLUDE_FROM_ALL
   action.cpp
   api.cpp
+  archive_builder.cpp
   archive_io.cpp
   database.cpp
   event.cpp

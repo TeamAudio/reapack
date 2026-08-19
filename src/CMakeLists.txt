@@ -63,6 +63,7 @@ add_library(reapack OBJECT
   api_misc.cpp
   api_package.cpp
   api_repo.cpp
+  archive_builder.cpp
   archive.cpp
   archive_io.cpp
   archive_tasks.cpp
