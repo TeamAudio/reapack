@@ -6,6 +6,7 @@
 #include <filesystem.hpp>
 #include <path.hpp>
 
+#include <fstream>
 #include <sstream>
 
 static const char *M = "[archive-builder]";
@@ -22,6 +23,16 @@ static std::string extract(const ArchiveReaderPtr &reader, const Path &path)
   return stream.str();
 }
 
+static std::string readFile(const Path &path)
+{
+  std::ifstream stream;
+  REQUIRE(FS::open(stream, path));
+
+  std::ostringstream contents;
+  contents << stream.rdbuf();
+  return contents.str();
+}
+
 TEST_CASE("build a ReaPack archive from an explicit plan", M) {
   const Path root(REAPACK_TEST_BINARY_DIR);
   const Path inputDir("archive-builder-input");
@@ -29,12 +40,14 @@ TEST_CASE("build a ReaPack archive from an explicit plan", M) {
   const Path script = inputDir + "preview.lua";
   const Path data = inputDir + "preview.dat";
   const Path output = testPath("preview.ReaPackArchive");
+  const Path repeatedOutput = testPath("preview-repeat.ReaPackArchive");
   const std::string indexContents = "<index version=\"1\" name=\"Preview\"/>\n";
   const std::string scriptContents = "return 'preview'\n";
   const std::string dataContents{"\x00\x01\xff\x00", 4};
 
   UseRootPath useRoot(root);
   FS::remove(output);
+  FS::remove(repeatedOutput);
   FS::remove(index);
   FS::remove(script);
   FS::remove(data);
@@ -53,9 +66,11 @@ TEST_CASE("build a ReaPack archive from an explicit plan", M) {
   plan.payloads.push_back({data, "Data/Project/preview.dat"});
 
   Archive::build(plan, output);
+  Archive::build(plan, repeatedOutput);
 
   REQUIRE(FS::exists(output));
   REQUIRE_FALSE(FS::exists(Path(output.join() + ".part")));
+  REQUIRE(readFile(output) == readFile(repeatedOutput));
 
   const auto reader = std::make_shared<ArchiveReader>(output);
   REQUIRE(extract(reader, Path("toc")) ==
@@ -72,6 +87,7 @@ TEST_CASE("build a ReaPack archive from an explicit plan", M) {
   REQUIRE(FS::remove(data));
   REQUIRE(FS::remove(inputDir));
   REQUIRE(FS::remove(output));
+  REQUIRE(FS::remove(repeatedOutput));
 }
 
 TEST_CASE("reject unsafe or duplicate archive targets", M) {
