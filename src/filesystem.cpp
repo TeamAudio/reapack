@@ -200,11 +200,12 @@ bool FS::mkdir(const Path &path)
 Path FS::canonical(const Path &path)
 {
 #ifdef _WIN32
-  return path;
+  return path.prependRoot();
 #else
-  char *resolved = realpath(path.join().c_str(), nullptr);
+  const std::string &fullPath = nativePath(path);
+  char *resolved = realpath(fullPath.empty() ? "." : fullPath.c_str(), nullptr);
   if(!resolved)
-    return path;
+    return path.prependRoot();
   Path out(resolved);
   free(resolved);
   return out;

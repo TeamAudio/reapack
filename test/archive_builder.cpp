@@ -124,3 +124,47 @@ TEST_CASE("validate archive inputs before writing", M) {
   REQUIRE_FALSE(FS::exists(output));
   REQUIRE_FALSE(FS::exists(Path(output.join() + ".part")));
 }
+
+TEST_CASE("validate payload checksums before writing", M) {
+  const Path root(REAPACK_TEST_BINARY_DIR);
+  const Path inputDir("archive-builder-checksum");
+  const Path index = inputDir + "index.xml";
+  const Path payload = inputDir + "payload";
+  const Path output = testPath("checksum.ReaPackArchive");
+
+  UseRootPath useRoot(root);
+  FS::remove(output);
+  REQUIRE(FS::write(index, "<index/>"));
+  REQUIRE(FS::write(payload, "payload"));
+
+  Archive::BuildPlan plan;
+  plan.repository = Remote("Preview", "https://example.invalid/index.xml");
+  plan.index = index;
+  plan.payloads.push_back({payload, "Data/payload",
+    "1220239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5"});
+
+  SECTION("matching") {
+    Archive::build(plan, output);
+    REQUIRE(FS::exists(output));
+  }
+
+  SECTION("mismatch") {
+    plan.payloads[0].checksum.back() = '0';
+    REQUIRE_THROWS_WITH(Archive::build(plan, output),
+      "checksum mismatch for " + payload.join());
+    REQUIRE_FALSE(FS::exists(output));
+  }
+
+  SECTION("malformed") {
+    plan.payloads[0].checksum = "sha256:invalid";
+    REQUIRE_THROWS_WITH(Archive::build(plan, output),
+      "invalid checksum for " + payload.join());
+    REQUIRE_FALSE(FS::exists(output));
+  }
+
+  REQUIRE(FS::remove(index));
+  REQUIRE(FS::remove(payload));
+  REQUIRE(FS::remove(inputDir));
+  if(FS::exists(output))
+    REQUIRE(FS::remove(output));
+}

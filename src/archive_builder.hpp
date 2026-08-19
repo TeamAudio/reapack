@@ -35,6 +35,7 @@ namespace Archive {
   struct Payload {
     Path source;
     std::string target;
+    std::string checksum;
   };
 
   struct BuildPlan {

@@ -20,6 +20,7 @@
 #include "archive_io.hpp"
 #include "errors.hpp"
 #include "filesystem.hpp"
+#include "hash.hpp"
 #include "string.hpp"
 
 #include <algorithm>
@@ -90,6 +91,30 @@ static void addFile(ArchiveWriter &writer, const Path &target,
   addStream(writer, target, stream);
 }
 
+static void validateChecksum(const Archive::Payload &payload)
+{
+  if(payload.checksum.empty())
+    return;
+
+  Hash::Algorithm algorithm;
+  if(!Hash::getAlgorithm(payload.checksum, &algorithm))
+    throw reapack_error("invalid checksum for " + payload.source.join());
+
+  std::ifstream stream;
+  if(!FS::open(stream, payload.source)) {
+    throw reapack_error(String::format("Could not open %s: %s",
+      payload.source.join().c_str(), FS::lastError()));
+  }
+
+  Hash hash(algorithm);
+  std::string buffer(4096, 0);
+  while(stream.read(&buffer[0], buffer.size()) || stream.gcount())
+    hash.addData(&buffer[0], static_cast<size_t>(stream.gcount()));
+
+  if(hash.digest() != payload.checksum)
+    throw reapack_error("checksum mismatch for " + payload.source.join());
+}
+
 void Archive::build(const BuildPlan &plan, const Path &output)
 {
   if(!plan.repository)
@@ -120,6 +145,7 @@ void Archive::build(const BuildPlan &plan, const Path &output)
       throw reapack_error("duplicate archive target '" + payload.target + "'");
     if(payload.source.empty() || !FS::exists(payload.source))
       throw reapack_error("payload file not found: " + payload.source.join());
+    validateChecksum(payload);
   }
 
   std::ostringstream toc;

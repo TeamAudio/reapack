@@ -59,25 +59,49 @@ configure_file(buildinfo.hpp.in buildinfo.hpp)
 add_library(reapack_archive STATIC
   archive_builder.cpp
   archive_io.cpp
+  archive_resolver.cpp
   filesystem.cpp
+  hash.cpp
+  index.cpp
+  index_v1.cpp
+  metadata.cpp
+  package.cpp
   path.cpp
+  platform.cpp
   remote.cpp
+  source.cpp
   string.cpp
+  time.cpp
   unicode.cpp
+  version.cpp
+  xml_$<IF:$<BOOL:${LIBXML2_FOUND}>,libxml2,tinyxml2>.cpp
 )
 
 target_compile_features(reapack_archive PUBLIC cxx_std_17)
 target_include_directories(reapack_archive PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(reapack_archive PUBLIC Boost::headers MiniZip::MiniZip)
+target_link_libraries(reapack_archive PUBLIC
+  Boost::headers MiniZip::MiniZip
+  $<IF:$<BOOL:${LIBXML2_FOUND}>,LibXml2::LibXml2,tinyxml2::tinyxml2>
+)
 
 if(WIN32)
   target_compile_options(reapack_archive PRIVATE /W3 /WX /wd4996)
   target_compile_definitions(reapack_archive PUBLIC NOMINMAX UNICODE)
+  target_link_libraries(reapack_archive PUBLIC Bcrypt)
 else()
   target_compile_options(reapack_archive PRIVATE
     -Wall -Wextra -Werror
     -Wno-unused-parameter -Wno-missing-field-initializers
   )
+endif()
+
+if(OPENSSL_FOUND)
+  if(RUNTIME_OPENSSL)
+    target_compile_definitions(reapack_archive PRIVATE RUNTIME_OPENSSL)
+    target_link_libraries(reapack_archive PRIVATE ${CMAKE_DL_LIBS})
+  else()
+    target_link_libraries(reapack_archive PUBLIC OpenSSL::Crypto)
+  endif()
 endif()
 
 add_library(reapack OBJECT
@@ -99,20 +123,14 @@ add_library(reapack OBJECT
   event.cpp
   filedialog.cpp
   filter.cpp
-  hash.cpp
   iconlist.cpp
   import.cpp
-  index.cpp
-  index_v1.cpp
   install.cpp
   listview.cpp
   main.cpp
   manager.cpp
   menu.cpp
-  metadata.cpp
   obsquery.cpp
-  package.cpp
-  platform.cpp
   progress.cpp
   reapack.cpp
   receipt.cpp
@@ -121,16 +139,12 @@ add_library(reapack OBJECT
   resource.rc
   richedit$<IF:$<BOOL:${APPLE}>,.mm,$<IF:$<BOOL:${WIN32}>,-win32,-generic>.cpp>
   serializer.cpp
-  source.cpp
   synchronize.cpp
   tabbar.cpp
   task.cpp
   thread.cpp
-  time.cpp
   transaction.cpp
-  version.cpp
   win32.cpp
-  xml_$<IF:$<BOOL:${LIBXML2_FOUND}>,libxml2,tinyxml2>.cpp
 )
 
 target_compile_features(reapack PUBLIC cxx_std_17)
@@ -158,14 +172,6 @@ target_link_libraries(reapack
   $<IF:$<BOOL:${LIBXML2_FOUND}>,LibXml2::LibXml2,tinyxml2::tinyxml2>
 )
 target_compile_definitions(reapack PRIVATE CURL_DISABLE_DEPRECATION)
-
-if(OPENSSL_FOUND)
-  if(RUNTIME_OPENSSL)
-    target_compile_definitions(reapack PRIVATE RUNTIME_OPENSSL)
-  else()
-    target_link_libraries(reapack OpenSSL::Crypto)
-  endif()
-endif()
 
 if(SWELL_FOUND)
   target_link_libraries(reapack SWELL::swell)
