@@ -111,6 +111,9 @@ This configuration skips dependencies used only by the REAPER extension. To
 also build and run the archive test suite, configure with
 `-DREAPACK_BUILD_TESTS=ON` and build the `test` target.
 
+`--repository-name` becomes the repository identity stored in the archive.
+Choose a name that will not collide with a repository the tester already uses.
+
 Relative source URLs in the index are resolved beneath `--source-root`. If the
 index contains absolute source URLs, pass their common base using
 `--source-url-prefix`. Run `reapack-archive --help` for all options.
