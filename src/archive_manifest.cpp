@@ -18,10 +18,35 @@
 
 #include "archive_manifest.hpp"
 
+#include "errors.hpp"
 #include "remote.hpp"
 
 #include <iomanip>
 #include <ostream>
+#include <sstream>
+
+Remote Archive::parseRepositoryRecord(const std::string &data)
+{
+  Remote repository = Remote::fromString(data);
+  if(!repository)
+    throw reapack_error("invalid repository record");
+  return repository;
+}
+
+Archive::PackageRecord Archive::parsePackageRecord(const std::string &data)
+{
+  PackageRecord package;
+  std::istringstream stream(data);
+  if(!(stream
+      >> std::quoted(package.category)
+      >> std::quoted(package.package)
+      >> std::quoted(package.version)
+      >> package.flags)) {
+    throw reapack_error("invalid package record");
+  }
+
+  return package;
+}
 
 void Archive::writeRepositoryRecord(std::ostream &stream,
   const Remote &repository)

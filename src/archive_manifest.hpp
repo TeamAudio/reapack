@@ -19,10 +19,10 @@
 #ifndef REAPACK_ARCHIVE_MANIFEST_HPP
 #define REAPACK_ARCHIVE_MANIFEST_HPP
 
+#include "remote.hpp"
+
 #include <iosfwd>
 #include <string>
-
-class Remote;
 
 namespace Archive {
   struct PackageRecord {
@@ -32,6 +32,8 @@ namespace Archive {
     int flags{};
   };
 
+  Remote parseRepositoryRecord(const std::string &);
+  PackageRecord parsePackageRecord(const std::string &);
   void writeRepositoryRecord(std::ostream &, const Remote &);
   void writePackageRecord(std::ostream &, const PackageRecord &);
 };

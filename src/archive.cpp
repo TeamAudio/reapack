@@ -17,6 +17,7 @@
 
 #include "archive.hpp"
 
+#include "archive_manifest.hpp"
 #include "config.hpp"
 #include "errors.hpp"
 #include "filesystem.hpp"
@@ -25,7 +26,6 @@
 #include "reapack.hpp"
 #include "transaction.hpp"
 
-#include <iomanip>
 #include <sstream>
 
 static const Path ARCHIVE_TOC("toc");
@@ -86,7 +86,7 @@ void Archive::import(const std::string &path)
 void ImportArchive::importRemote(const std::string &data)
 {
   m_lastIndex = nullptr; // clear the previous repository
-  Remote remote = Remote::fromString(data);
+  Remote remote = Archive::parseRepositoryRecord(data);
 
   if(const int err = m_reader->extractFile(Index::pathFor(remote.name()))) {
     throw reapack_error(String::format("Failed to extract index of %s (%d)",
@@ -110,23 +110,17 @@ void ImportArchive::importPackage(const std::string &data)
   if(!m_lastIndex)
     return;
 
-  std::string categoryName, packageName, versionName;
-  int flags;
+  const Archive::PackageRecord package = Archive::parsePackageRecord(data);
 
-  std::istringstream stream(data);
-  stream
-    >> quoted(categoryName) >> quoted(packageName) >> quoted(versionName)
-    >> flags;
-
-  const Package *pkg = m_lastIndex->find(categoryName, packageName);
-  const Version *ver = pkg ? pkg->findVersion(versionName) : nullptr;
+  const Package *pkg = m_lastIndex->find(package.category, package.package);
+  const Version *ver = pkg ? pkg->findVersion(package.version) : nullptr;
 
   if(!ver) {
     throw reapack_error(String::format(
       "%s/%s/%s v%s cannot be found or is incompatible with your operating system.",
-      m_lastIndex->name().c_str(), categoryName.c_str(),
-      packageName.c_str(), versionName.c_str()));
+      m_lastIndex->name().c_str(), package.category.c_str(),
+      package.package.c_str(), package.version.c_str()));
   }
 
-  m_tx->install(ver, flags, m_reader);
+  m_tx->install(ver, package.flags, m_reader);
 }
