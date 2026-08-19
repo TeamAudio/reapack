@@ -22,6 +22,7 @@
 #include "errors.hpp"
 #include "filesystem.hpp"
 #include "hash.hpp"
+#include "index.hpp"
 #include "string.hpp"
 
 #include <algorithm>
@@ -32,11 +33,6 @@
 #include <sstream>
 
 static const Path ARCHIVE_TOC("toc");
-
-static Path indexPathFor(const Remote &repository)
-{
-  return Path::CACHE + (repository.name() + ".xml");
-}
 
 static std::string targetKey(std::string target)
 {
@@ -127,7 +123,7 @@ void Archive::build(const BuildPlan &plan, const Path &output)
   if(!FS::exists(plan.index))
     throw reapack_error("index file not found: " + plan.index.join());
 
-  const Path indexTarget = indexPathFor(plan.repository);
+  const Path indexTarget = Index::pathFor(plan.repository.name());
   std::set<std::string> targets{
     targetKey(ARCHIVE_TOC.join(false)),
     targetKey(indexTarget.join(false)),
