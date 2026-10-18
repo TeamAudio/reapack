@@ -71,6 +71,7 @@ jobs:
       contents: write
     env:
       VERSION: ${{ needs.create-release.outputs.version }}
+      REAPACK_ARCHIVE_VERSION: ${{ needs.create-release.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -127,7 +128,6 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release
           -DREAPACK_BUILD_PLUGIN=OFF
           -DREAPACK_BUILD_TESTS=ON
-          -DREAPACK_ARCHIVE_VERSION=${{ env.VERSION }}
 
       - name: Build and test
         run: >-
@@ -140,7 +140,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cat build/archive-ci/src/archive_version.hpp
           output="$("${{ matrix.exe }}" --version)"
+          output="${output%$'\r'}"
           echo "$output"
           test "$output" = "reapack-archive ${VERSION}"
 
