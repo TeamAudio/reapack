@@ -24,6 +24,10 @@
 #include <stdexcept>
 #include <string>
 
+#ifndef REAPACK_ARCHIVE_VERSION
+#define REAPACK_ARCHIVE_VERSION "dev"
+#endif
+
 static constexpr const char *DEFAULT_REPOSITORY_URL =
   "https://reapack-preview.invalid/index.xml";
 
@@ -36,6 +40,7 @@ struct Options {
   std::string output;
   bool offline{};
   bool help{};
+  bool version{};
 };
 
 class usage_error : public std::runtime_error {
@@ -64,7 +69,8 @@ static void printUsage(std::ostream &stream)
     "  --source-url-prefix URL     Prefix stripped from absolute source URLs\n"
     "  --offline                   Reject sources that require downloading\n"
     "  --repository-url URL        Stored URL (default: offline placeholder)\n"
-    "  -h, --help                  Show this help\n";
+    "  -h, --help                  Show this help\n"
+    "  --version                   Show version\n";
 }
 
 static std::string takeValue(const int argc, char **argv, int *index,
@@ -97,6 +103,8 @@ static Options parseOptions(const int argc, char **argv)
 
     if(option == "-h" || option == "--help")
       options.help = true;
+    else if(option == "--version")
+      options.version = true;
     else if(option == "--index")
       setOption(&options.index, takeValue(argc, argv, &i, option), option);
     else if(option == "--source-root")
@@ -119,7 +127,7 @@ static Options parseOptions(const int argc, char **argv)
       throw usage_error("unknown option " + option);
   }
 
-  if(options.help)
+  if(options.help || options.version)
     return options;
 
   if(options.index.empty())
@@ -138,6 +146,10 @@ int main(const int argc, char **argv)
 {
   try {
     const Options options = parseOptions(argc, argv);
+    if(options.version) {
+      std::cout << "reapack-archive " << REAPACK_ARCHIVE_VERSION << '\n';
+      return 0;
+    }
     if(options.help) {
       printUsage(std::cout);
       return 0;

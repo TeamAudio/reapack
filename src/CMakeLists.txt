@@ -67,7 +67,12 @@ if(OPENSSL_FOUND)
   endif()
 endif()
 
+set(REAPACK_ARCHIVE_VERSION "dev" CACHE STRING
+  "Version string printed by reapack-archive --version")
+
 add_executable(reapack-archive archive_cli.cpp)
+target_compile_definitions(reapack-archive PRIVATE
+  REAPACK_ARCHIVE_VERSION="${REAPACK_ARCHIVE_VERSION}")
 target_link_libraries(reapack-archive PRIVATE reapack_archive)
 
 if(NOT REAPACK_BUILD_PLUGIN)

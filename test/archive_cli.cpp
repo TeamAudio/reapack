@@ -68,6 +68,12 @@ TEST_CASE("archive CLI help", M) {
   REQUIRE(runCommand(command) == 0);
 }
 
+TEST_CASE("archive CLI version", M) {
+  const std::string command = shellQuote(REAPACK_ARCHIVE_EXECUTABLE) +
+    " --version" + silenceOutput();
+  REQUIRE(runCommand(command) == 0);
+}
+
 TEST_CASE("archive CLI rejects invalid usage", M) {
   const std::string command = shellQuote(REAPACK_ARCHIVE_EXECUTABLE) +
     " --unknown" + silenceOutput();
