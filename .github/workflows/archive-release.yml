@@ -1,0 +1,198 @@
+name: Archive CLI Release
+
+on:
+  push:
+    tags:
+      - 'reapack-archive-v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archive-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  create-release:
+    name: Create draft release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Derive version from tag
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#reapack-archive-v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag $GITHUB_REF_NAME does not carry a valid semver version." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<EOF
+          Standalone \`reapack-archive\` command for building offline ReaPack
+          archives from a local repository index.
+
+          Runtime dependencies (Linux/macOS builds link system libraries):
+          libcurl, libxml2, and OpenSSL/libcrypto. The Windows build is
+          statically linked.
+
+          Verify downloads against \`SHA256SUMS\`. Usage is documented in the
+          README section "Build an offline archive":
+          https://github.com/${GH_REPO}/blob/${GITHUB_REF_NAME}/README.md#build-an-offline-archive
+          EOF
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release for $GITHUB_REF_NAME already exists; reusing it."
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --verify-tag \
+              --draft \
+              --title "ReaPack Archive v${VERSION}" \
+              --notes-file release-notes.md
+          fi
+
+  build:
+    name: ${{ matrix.name }}
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.create-release.outputs.version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-24.04
+            asset: linux-x86_64
+            exe: build/archive-ci/src/reapack-archive
+          - name: macOS
+            os: macos-15
+            asset: macos-arm64
+            exe: build/archive-ci/src/reapack-archive
+          - name: Windows
+            os: windows-2025
+            asset: windows-x64
+            exe: build/archive-ci/src/Release/reapack-archive.exe
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes \
+            catch2 \
+            libboost-dev \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            zlib1g-dev
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install boost catch2
+
+      - name: Configure Windows dependencies
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not $env:VCPKG_INSTALLATION_ROOT) {
+            throw 'The hosted runner did not provide vcpkg.'
+          }
+          "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+          "VCPKG_DEFAULT_TRIPLET=x64-windows-static" >> $env:GITHUB_ENV
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build/archive-ci
+          -DCMAKE_BUILD_TYPE=Release
+          -DREAPACK_BUILD_PLUGIN=OFF
+          -DREAPACK_BUILD_TESTS=ON
+          -DREAPACK_ARCHIVE_VERSION=${{ env.VERSION }}
+
+      - name: Build and test
+        run: >-
+          cmake --build build/archive-ci
+          --config Release
+          --target test
+          --parallel
+
+      - name: Smoke test version stamp
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$("${{ matrix.exe }}" --version)"
+          echo "$output"
+          test "$output" = "reapack-archive ${VERSION}"
+
+      - name: Package (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset="reapack-archive-v${VERSION}-${{ matrix.asset }}.tar.gz"
+          tar -czf "$asset" \
+            -C "$(dirname "${{ matrix.exe }}")" \
+            "$(basename "${{ matrix.exe }}")"
+          echo "ASSET=$asset" >> "$GITHUB_ENV"
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $asset = "reapack-archive-v$env:VERSION-${{ matrix.asset }}.zip"
+          Compress-Archive -Path "${{ matrix.exe }}" -DestinationPath $asset
+          "ASSET=$asset" >> $env:GITHUB_ENV
+
+      - name: Upload asset to draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: gh release upload "$GITHUB_REF_NAME" "$ASSET" --clobber
+
+  publish:
+    name: Publish release
+    needs: [create-release, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.create-release.outputs.version }}
+    steps:
+      - name: Add checksums and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir dist
+          gh release download "$GITHUB_REF_NAME" \
+            --dir dist --pattern 'reapack-archive-*'
+          (cd dist && sha256sum reapack-archive-* > SHA256SUMS && cat SHA256SUMS)
+          gh release upload "$GITHUB_REF_NAME" dist/SHA256SUMS --clobber
+          if [[ "$VERSION" == *-* ]]; then
+            gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease
+          else
+            gh release edit "$GITHUB_REF_NAME" --draft=false
+          fi
