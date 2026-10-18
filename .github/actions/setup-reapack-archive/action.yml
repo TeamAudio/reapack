@@ -123,7 +123,7 @@ runs:
         if ($actual -ne $expected) {
           throw "Checksum mismatch for ${asset}: expected $expected, got $actual"
         }
-        Write-Output "$asset: OK"
+        Write-Output "${asset}: OK"
         Expand-Archive -Path (Join-Path $dest $asset) -DestinationPath $dest -Force
         $exe = Join-Path $dest 'reapack-archive.exe'
         $output = (& $exe --version).Trim()
