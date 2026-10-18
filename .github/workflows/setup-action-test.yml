@@ -1,0 +1,85 @@
+name: Setup Action Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - archive-builder
+    paths:
+      - .github/actions/setup-reapack-archive/**
+      - .github/workflows/setup-action-test.yml
+  pull_request:
+    paths:
+      - .github/actions/setup-reapack-archive/**
+      - .github/workflows/setup-action-test.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: setup-action-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux,   os: ubuntu-24.04 }
+          - { name: macOS,   os: macos-15 }
+          - { name: Windows, os: windows-2025 }
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up reapack-archive
+        id: setup
+        uses: ./.github/actions/setup-reapack-archive
+        with:
+          version: '0.1.3'
+
+      - name: Verify PATH and output
+        shell: bash
+        env:
+          EXE: ${{ steps.setup.outputs.executable-path }}
+        run: |
+          set -euo pipefail
+          test -f "$EXE"
+          test "${{ steps.setup.outputs.version }}" = "0.1.3"
+          via_path="$(reapack-archive --version)"
+          via_output="$("$EXE" --version)"
+          test "${via_path%$'\r'}" = "reapack-archive 0.1.3"
+          test "${via_output%$'\r'}" = "reapack-archive 0.1.3"
+
+      - name: Build a fixture archive
+        shell: bash
+        env:
+          EXE: ${{ steps.setup.outputs.executable-path }}
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP}/fixture"
+          mkdir -p "$work/input"
+          printf 'payload' > "$work/input/payload.lua"
+          cat > "$work/input/index.xml" <<'EOF'
+          <index version="1"><category name="Tools"><reapack name="Payload.lua" type="script"><version name="1.0"><source file="payload.lua" hash="1220239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5">payload.lua</source></version></reapack></category></index>
+          EOF
+          "$EXE" --index "$work/input/index.xml" \
+            --source-root "$work/input" \
+            --repository-name "Action Test" \
+            --offline \
+            --output "$work/fixture.ReaPackArchive"
+          python3 - "$work/fixture.ReaPackArchive" <<'EOF'
+          import sys, zipfile
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              names = z.namelist()
+              toc = z.read("toc").decode()
+          assert "ReaPack/cache/Action Test.xml" in names, names
+          assert 'PACK "Tools" "Payload.lua" "1.0" 0' in toc, toc
+          print("fixture archive OK:", names)
+          EOF
