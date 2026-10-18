@@ -1,0 +1,135 @@
+name: Set up reapack-archive
+description: >-
+  Download a checksum-verified reapack-archive release binary from
+  TeamAudio/reapack and add it to PATH.
+
+inputs:
+  version:
+    description: reapack-archive version to install, without a leading "v"
+    required: false
+    default: '0.2.0'
+  install-dependencies:
+    description: Install Linux runtime libraries (libcurl, libxml2, OpenSSL, zlib)
+    required: false
+    default: 'true'
+
+outputs:
+  executable-path:
+    description: Absolute path to the reapack-archive executable
+    value: >-
+      ${{ steps.install-unix.outputs.executable-path ||
+          steps.install-windows.outputs.executable-path }}
+  version:
+    description: Installed reapack-archive version
+    value: ${{ inputs.version }}
+
+branding:
+  icon: archive
+  color: gray-dark
+
+runs:
+  using: composite
+  steps:
+    - name: Install runtime dependencies (Linux)
+      if: runner.os == 'Linux' && inputs.install-dependencies == 'true'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install --no-install-recommends --yes \
+          libcurl4 \
+          libssl3 \
+          libxml2 \
+          zlib1g
+
+    - name: Install reapack-archive (Linux/macOS)
+      id: install-unix
+      if: runner.os != 'Windows'
+      shell: bash
+      env:
+        VERSION_INPUT: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        version="$VERSION_INPUT"
+        if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+          echo "::error::Invalid reapack-archive version: $version"
+          exit 1
+        fi
+        case "${RUNNER_OS}/${RUNNER_ARCH}" in
+          Linux/X64)  asset_suffix="linux-x86_64.tar.gz" ;;
+          macOS/ARM64) asset_suffix="macos-arm64.tar.gz" ;;
+          *)
+            echo "::error::Unsupported runner: ${RUNNER_OS}/${RUNNER_ARCH}. Published assets cover Linux/X64, macOS/ARM64, and Windows/X64."
+            exit 1
+            ;;
+        esac
+        asset="reapack-archive-v${version}-${asset_suffix}"
+        base="https://github.com/TeamAudio/reapack/releases/download/reapack-archive-v${version}"
+        dest="${RUNNER_TEMP}/reapack-archive-${version}"
+        mkdir -p "$dest"
+        curl -fsSL --retry 3 --retry-delay 2 -o "${dest}/${asset}" "${base}/${asset}"
+        curl -fsSL --retry 3 --retry-delay 2 -o "${dest}/SHA256SUMS" "${base}/SHA256SUMS"
+        if command -v sha256sum >/dev/null 2>&1; then
+          (cd "$dest" && grep " $asset\$" SHA256SUMS | sha256sum -c -)
+        else
+          (cd "$dest" && grep " $asset\$" SHA256SUMS | shasum -a 256 -c -)
+        fi
+        tar -xzf "${dest}/${asset}" -C "$dest"
+        exe="${dest}/reapack-archive"
+        chmod +x "$exe"
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          ldd "$exe"
+          if ldd "$exe" | grep -q 'not found'; then
+            echo "::error::Missing runtime libraries for reapack-archive."
+            exit 1
+          fi
+        fi
+        output="$("$exe" --version)"
+        output="${output%$'\r'}"
+        echo "$output"
+        if [[ "$output" != "reapack-archive ${version}" ]]; then
+          echo "::error::Unexpected reapack-archive version output: $output"
+          exit 1
+        fi
+        echo "$dest" >> "$GITHUB_PATH"
+        echo "executable-path=$exe" >> "$GITHUB_OUTPUT"
+
+    - name: Install reapack-archive (Windows)
+      id: install-windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        VERSION_INPUT: ${{ inputs.version }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $version = $env:VERSION_INPUT
+        if ($version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$') {
+          throw "Invalid reapack-archive version: $version"
+        }
+        if ($env:RUNNER_ARCH -ne 'X64') {
+          throw "Unsupported runner: Windows/$env:RUNNER_ARCH. Published assets cover Linux/X64, macOS/ARM64, and Windows/X64."
+        }
+        $asset = "reapack-archive-v$version-windows-x64.zip"
+        $base = "https://github.com/TeamAudio/reapack/releases/download/reapack-archive-v$version"
+        $dest = Join-Path $env:RUNNER_TEMP "reapack-archive-$version"
+        New-Item -ItemType Directory -Force -Path $dest | Out-Null
+        & curl.exe -fsSL --retry 3 --retry-delay 2 -o (Join-Path $dest $asset) "$base/$asset"
+        if ($LASTEXITCODE -ne 0) { throw "Failed to download $asset" }
+        & curl.exe -fsSL --retry 3 --retry-delay 2 -o (Join-Path $dest 'SHA256SUMS') "$base/SHA256SUMS"
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to download SHA256SUMS' }
+        $line = Select-String -Path (Join-Path $dest 'SHA256SUMS') -Pattern " $asset$"
+        if (-not $line) { throw "No checksum entry for $asset" }
+        $expected = ($line.Line -split '\s+')[0].ToLower()
+        $actual = (Get-FileHash -Algorithm SHA256 (Join-Path $dest $asset)).Hash.ToLower()
+        if ($actual -ne $expected) {
+          throw "Checksum mismatch for ${asset}: expected $expected, got $actual"
+        }
+        Write-Output "$asset: OK"
+        Expand-Archive -Path (Join-Path $dest $asset) -DestinationPath $dest -Force
+        $exe = Join-Path $dest 'reapack-archive.exe'
+        $output = (& $exe --version).Trim()
+        Write-Output $output
+        if ($output -ne "reapack-archive $version") {
+          throw "Unexpected reapack-archive version output: $output"
+        }
+        $dest | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+        "executable-path=$exe" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
