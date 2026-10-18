@@ -18,15 +18,12 @@
 
 #include "archive_builder.hpp"
 #include "archive_source.hpp"
+#include "archive_version.hpp"
 #include "remote.hpp"
 
 #include <iostream>
 #include <stdexcept>
 #include <string>
-
-#ifndef REAPACK_ARCHIVE_VERSION
-#define REAPACK_ARCHIVE_VERSION "dev"
-#endif
 
 static constexpr const char *DEFAULT_REPOSITORY_URL =
   "https://reapack-preview.invalid/index.xml";

@@ -70,9 +70,10 @@ endif()
 set(REAPACK_ARCHIVE_VERSION "dev" CACHE STRING
   "Version string printed by reapack-archive --version")
 
+configure_file(archive_version.hpp.in archive_version.hpp @ONLY)
+
 add_executable(reapack-archive archive_cli.cpp)
-target_compile_definitions(reapack-archive PRIVATE
-  REAPACK_ARCHIVE_VERSION="${REAPACK_ARCHIVE_VERSION}")
+target_include_directories(reapack-archive PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(reapack-archive PRIVATE reapack_archive)
 
 if(NOT REAPACK_BUILD_PLUGIN)
