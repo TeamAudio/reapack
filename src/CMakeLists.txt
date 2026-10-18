@@ -70,6 +70,13 @@ endif()
 set(REAPACK_ARCHIVE_VERSION "dev" CACHE STRING
   "Version string printed by reapack-archive --version")
 
+# An environment variable overrides the cache value. Release automation
+# uses this route: a version passed as a -D argument can be mangled by
+# PowerShell's native argument parsing on Windows runners.
+if(DEFINED ENV{REAPACK_ARCHIVE_VERSION})
+  set(REAPACK_ARCHIVE_VERSION "$ENV{REAPACK_ARCHIVE_VERSION}")
+endif()
+
 configure_file(archive_version.hpp.in archive_version.hpp @ONLY)
 
 add_executable(reapack-archive archive_cli.cpp)
