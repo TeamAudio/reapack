@@ -131,6 +131,16 @@ The generated repository is disabled and uses a non-fetchable placeholder URL
 by default. Testers can load the result using ReaPack's **Import offline
 archive...** action; importing remains an explicit user action.
 
+#### Releasing `reapack-archive`
+
+Releases use tags in their own namespace, independent of the ReaPack plugin
+version: `reapack-archive-v<major>.<minor>.<patch>` (for example
+`reapack-archive-v0.1.1`). Pushing such a tag runs the Archive CLI Release
+workflow, which builds and tests on Linux, macOS, and Windows, then publishes
+the binaries and a `SHA256SUMS` file as a GitHub Release. The tag's version is
+stamped into the binary and printed by `reapack-archive --version`. Source
+builds without a stamp report `dev`.
+
 ### Cross-compilation
 
 #### Linux
